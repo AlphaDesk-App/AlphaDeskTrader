@@ -16,7 +16,13 @@ app = FastAPI(title="AlphaDesk V2 API", version="2.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000", "app://."],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "app://.",
+        "https://alphadesktrader.onrender.com",
+        "https://*.onrender.com",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
