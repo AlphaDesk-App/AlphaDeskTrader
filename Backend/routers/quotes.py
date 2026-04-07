@@ -1,81 +1,43 @@
-# routers/quotes.py
-#
-# Handles all quote-related endpoints.
-#
-# Endpoints:
-#   GET /quotes/{symbol}                    → single live quote
-#   GET /quotes/?symbols=SPY,QQQ            → multiple live quotes
-#   GET /quotes/{symbol}/history            → OHLCV candles for charting
-
-from fastapi import APIRouter, HTTPException, Query
-from schwab.client import schwab
+from fastapi import APIRouter, HTTPException, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+from database import get_db
+from auth_deps import get_current_user
+from models import User
+from schwab.client_db import get_schwab_client
 
 router = APIRouter()
 
-
-@router.get("/{symbol}/history")
-async def get_price_history(
-    symbol: str,
-    period_type: str = Query("day", description="day | month | year | ytd"),
-    period: int = Query(1, description="Number of periods"),
-    frequency_type: str = Query("minute", description="minute | daily | weekly | monthly"),
-    frequency: int = Query(1, description="Frequency e.g. 1, 2, 5, 15, 30"),
-    need_extended_hours: bool = Query(True, description="Include pre/after market"),
-):
-    # Returns OHLCV candle data for charting.
-    # Schwab price history endpoint supports:
-    #   periodType=day       → intraday (use frequencyType=minute)
-    #   periodType=month     → daily candles over N months
-    #   periodType=year      → daily/weekly candles over N years
-    #   periodType=ytd       → year to date
-    #
-    # Examples:
-    #   /quotes/SPY/history?period_type=day&period=1&frequency_type=minute&frequency=1   → 1-min candles today
-    #   /quotes/SPY/history?period_type=day&period=1&frequency_type=minute&frequency=5   → 5-min candles today
-    #   /quotes/SPY/history?period_type=month&period=1&frequency_type=daily&frequency=1  → daily candles 1 month
-    try:
-        return schwab.get_price_history(
-            symbol=symbol.upper(),
-            period_type=period_type,
-            period=period,
-            frequency_type=frequency_type,
-            frequency=frequency,
-            need_extended_hours_data=need_extended_hours,
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/{symbol}/options")
-async def get_options_chain(
-    symbol: str,
-    contract_type: str = Query("ALL", description="CALL | PUT | ALL"),
-    strike_count: int = Query(20, description="Strikes above/below ATM"),
-    expiration_month: str = Query("ALL", description="JAN-DEC or ALL"),
-):
-    try:
-        return schwab.get_options_chain(
-            symbol=symbol.upper(),
-            contract_type=contract_type,
-            strike_count=strike_count,
-            expiration_month=expiration_month,
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
 @router.get("/{symbol}")
-async def get_quote(symbol: str):
+async def get_quote(symbol: str, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     try:
-        return schwab.get_quote(symbol.upper())
+        client = await get_schwab_client(current_user.id, db)
+        return await client.get_quote(symbol.upper())
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
 
 @router.get("/")
-async def get_quotes(symbols: str = Query(..., description="Comma-separated symbols e.g. SPY,QQQ")):
+async def get_quotes(symbols: str, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     try:
-        symbol_list = [s.strip().upper() for s in symbols.split(",")]
-        return schwab.get_quotes(symbol_list)
+        client = await get_schwab_client(current_user.id, db)
+        return await client.get_quotes(symbols.split(","))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/{symbol}/history")
+async def get_price_history(symbol: str, period_type: str = "day", period: int = 1,
+    frequency_type: str = "minute", frequency: int = 5,
+    current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    try:
+        client = await get_schwab_client(current_user.id, db)
+        return await client.get_price_history(symbol.upper(), period_type, period, frequency_type, frequency)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/{symbol}/options")
+async def get_options_chain(symbol: str, contract_type: str = "ALL", strike_count: int = 20,
+    current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    try:
+        client = await get_schwab_client(current_user.id, db)
+        return await client.get_options_chain(symbol.upper(), contract_type, strike_count)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
