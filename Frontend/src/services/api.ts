@@ -1,14 +1,23 @@
 const PROD_URL = 'https://alphadesktrader.onrender.com';
-const IS_PROD  = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
-const BASE     = IS_PROD ? PROD_URL : '/api';
-const WS_BASE  = IS_PROD ? 'wss://alphadesktrader.onrender.com' : 'ws://127.0.0.1:8000';
+
+function getBase(): string {
+  const host = window.location.hostname;
+  if (host === 'localhost' || host === '127.0.0.1') return '/api';
+  return PROD_URL;
+}
+
+function getWsBase(): string {
+  const host = window.location.hostname;
+  if (host === 'localhost' || host === '127.0.0.1') return 'ws://127.0.0.1:8000';
+  return 'wss://alphadesktrader.onrender.com';
+}
 
 function getToken(): string {
   return localStorage.getItem('alphaDesk_token') ?? '';
 }
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
+  const res = await fetch(`${getBase()}${path}`, {
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${getToken()}`,
@@ -48,14 +57,14 @@ export const api = {
 
 export function createQuoteSocket(symbol: string, onMessage: (data: any) => void): WebSocket {
   const token = getToken();
-  const ws = new WebSocket(`${WS_BASE}/ws/quotes/${symbol}?token=${token}`);
+  const ws = new WebSocket(`${getWsBase()}/ws/quotes/${symbol}?token=${token}`);
   ws.onmessage = (e) => onMessage(JSON.parse(e.data));
   return ws;
 }
 
 export function createPortfolioSocket(accountHash: string, onMessage: (data: any) => void): WebSocket {
   const token = getToken();
-  const ws = new WebSocket(`${WS_BASE}/ws/portfolio/${accountHash}?token=${token}`);
+  const ws = new WebSocket(`${getWsBase()}/ws/portfolio/${accountHash}?token=${token}`);
   ws.onmessage = (e) => onMessage(JSON.parse(e.data));
   return ws;
 }
