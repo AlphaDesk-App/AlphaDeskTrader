@@ -1,4 +1,4 @@
-const PROD_URL = 'https://alphadesktrader.onrender.com';
+﻿const PROD_URL = 'https://alphadesktrader.onrender.com';
 
 function getBase(): string {
   const host = window.location.hostname;
