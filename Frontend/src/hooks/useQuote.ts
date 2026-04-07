@@ -1,16 +1,23 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 
+function getWsBase(): string {
+  const host = window.location.hostname;
+  if (host === 'localhost' || host === '127.0.0.1') return 'ws://127.0.0.1:8000';
+  return 'wss://alphadesktrader.onrender.com';
+}
+
 export function useQuote(symbol: string) {
-  const [data, setData] = useState<any>(null);
+  const [data, setData]   = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
-  const wsRef = useRef<WebSocket | null>(null);
-  const retryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const wsRef             = useRef<WebSocket | null>(null);
+  const retryRef          = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const token             = localStorage.getItem('alphaDesk_token') ?? '';
 
   const connect = useCallback(() => {
     if (!symbol) return;
     if (wsRef.current) wsRef.current.close();
 
-    const ws = new WebSocket(`ws://127.0.0.1:8000/ws/quotes/${symbol}`);
+    const ws = new WebSocket(`${getWsBase()}/ws/quotes/${symbol}?token=${token}`);
 
     ws.onmessage = (e) => {
       try {
@@ -23,7 +30,6 @@ export function useQuote(symbol: string) {
     ws.onerror = () => setError('Connection error');
 
     ws.onclose = () => {
-      // Auto-reconnect every 2 seconds
       retryRef.current = setTimeout(connect, 2000);
     };
 
