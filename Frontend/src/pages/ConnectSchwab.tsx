@@ -15,7 +15,7 @@ export default function ConnectSchwab() {
     setError('');
     try {
       const token = localStorage.getItem('alphaDesk_token') ?? '';
-      const res = await fetch('/api/auth/schwab/connect', {
+      const res = await fetch(`${(window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? '/api' : 'https://alphadesktrader.onrender.com'}/auth/schwab/connect`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error('Failed to get auth URL');
