@@ -15,7 +15,7 @@ const SETUPS = [
 const DATE_FILTERS = ['Today', 'Yesterday', 'This Week', 'This Month', 'Custom'] as const;
 type DateFilter = typeof DATE_FILTERS[number];
 
-function isOption(sym: string) { return /^[A-Z]+\d{6}[CP]\d+$/.test(sym); }
+function isOption(sym: string) { return /^[A-Z]+\s*\d{6}[CP]\d+$/.test(sym.trim()); }
 
 function formatSym(sym: string) {
   const m = sym.match(/^([A-Z]+)(\d{2})(\d{2})(\d{2})([CP])(\d+)$/);
@@ -69,7 +69,7 @@ function pairTrades(orders: any[]): any[] {
   const trades: any[] = [];
 
   Object.entries(bySymbol).forEach(([sym, orders]) => {
-    const opt  = isOption(sym);
+    const opt  = isOption(sym.trim());
     const buyQueue: any[] = [];
 
     orders.forEach(order => {

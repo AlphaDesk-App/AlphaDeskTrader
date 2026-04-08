@@ -21,7 +21,7 @@ export default function Dashboard() {
 
   // ── Shared FIFO pairing utility ──────────────────────────────────────────
   const calcPnlFromOrders = (orderList: any[]): number => {
-    const isOpt  = (sym: string) => /^[A-Z]+\d{6}[CP]\d+$/.test(sym);
+    const isOpt  = (sym: string) => /^[A-Z]+\s*\d{6}[CP]\d+$/.test(sym.trim());
     const isEntry = (instr: string) => instr === 'BUY' || instr === 'BUY_TO_OPEN';
     const isExit  = (instr: string) => instr === 'SELL' || instr === 'SELL_TO_CLOSE' || instr === 'SELL_SHORT';
 
@@ -64,7 +64,7 @@ export default function Dashboard() {
     const qty  = p.longQuantity || p.shortQuantity || 0;
     const avg  = p.averagePrice ?? 0;
     const mktV = p.marketValue ?? 0;
-    const mult = /^[A-Z]+\d{6}[CP]\d+$/.test(sym) ? 100 : 1;
+    const mult = /^[A-Z]+\s*\d{6}[CP]\d+$/.test(sym.trim()) ? 100 : 1;
     const mark = qty > 0 ? mktV / (qty * mult) : 0;
     return s + (mark - avg) * qty * mult;
   }, 0);
@@ -170,7 +170,7 @@ export default function Dashboard() {
                       const qty      = pos.longQuantity || pos.shortQuantity || 0;
                       const avg      = pos.averagePrice ?? 0;
                       const mktVal   = pos.marketValue ?? 0;
-                      const isOpt    = /^[A-Z]+\d{6}[CP]\d+$/.test(sym);
+                      const isOpt    = /^[A-Z]+\s*\d{6}[CP]\d+$/.test(sym.trim());
                       const mult     = isOpt ? 100 : 1;
                       const markPrice = qty > 0 ? mktVal / (qty * mult) : 0;
                       // Unrealized P&L = (mark - avg cost) × qty × multiplier
