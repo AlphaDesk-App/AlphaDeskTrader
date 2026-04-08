@@ -520,9 +520,12 @@ export default function Charts() {
                       </thead>
                       <tbody>
                         {getStrikes().map((call: any, i: number) => {
-                          const putMap  = chain.putExpDateMap?.[selectedExpiry] ?? {};
+                          // Put lookup: find matching expiry in putExpDateMap (keys may differ slightly from calls)
+                          const putExpMap = chain.putExpDateMap ?? {};
+                          const putExpKey = Object.keys(putExpMap).find(k => k.startsWith(selectedExpiry?.split(':')[0] ?? '')) ?? Object.keys(putExpMap)[0] ?? '';
+                          const putMap  = putExpMap[putExpKey] ?? {};
                           const putKey  = Object.keys(putMap).find(k => parseFloat(k) === call.strikePrice);
-                          const put     = putKey ? (Object.values(putMap[putKey] as any)[0] as any) : null;
+                          const put     = putKey ? (Array.isArray(putMap[putKey]) ? putMap[putKey][0] : Object.values(putMap[putKey] as any)[0] as any) : null;
                           const isATM   = Math.abs(call.strikePrice - (chain.underlyingPrice ?? 0)) < 1;
                           const callITM = call.strikePrice < (chain.underlyingPrice ?? 0);
                           const putITM  = call.strikePrice > (chain.underlyingPrice ?? 0);
@@ -533,8 +536,8 @@ export default function Charts() {
                               <td style={{ padding: '4px 8px', textAlign: 'right', background: callITM ? 'var(--bg-secondary)' : 'transparent', cursor: 'pointer' }} onClick={() => { setSelectedOption(call); setOptionType('CALL'); }}>{call.openInterest ?? '--'}</td>
                               <td style={{ padding: '4px 8px', textAlign: 'right', color: 'var(--amber)', background: callITM ? 'var(--bg-secondary)' : 'transparent', cursor: 'pointer' }} onClick={() => { setSelectedOption(call); setOptionType('CALL'); }}>{call.delta?.toFixed(2) ?? '--'}</td>
                               <td style={{ padding: '4px 8px', textAlign: 'right', background: callITM ? 'var(--bg-secondary)' : 'transparent', cursor: 'pointer' }} onClick={() => { setSelectedOption(call); setOptionType('CALL'); }}>{((call.inTheMoney ? call.delta : 1 - Math.abs(call.delta ?? 0)) * 100).toFixed(1)}%</td>
-                              <td style={{ padding: '4px 8px', textAlign: 'right', fontFamily: 'JetBrains Mono, monospace', fontWeight: 600, background: callITM ? 'var(--bg-secondary)' : 'transparent', cursor: 'pointer' }} onClick={() => { setSelectedOption(call); setOptionType('CALL'); }}>{call.bid?.toFixed(2) ?? '--'}</td>
-                              <td style={{ padding: '4px 8px', textAlign: 'right', fontFamily: 'JetBrains Mono, monospace', fontWeight: 600, background: callITM ? 'var(--bg-secondary)' : 'transparent', cursor: 'pointer' }} onClick={() => { setSelectedOption(call); setOptionType('CALL'); }}>{call.ask?.toFixed(2) ?? '--'}</td>
+                              <td style={{ padding: '4px 8px', textAlign: 'right', fontFamily: 'JetBrains Mono, monospace', fontWeight: 600, background: callITM ? 'var(--bg-secondary)' : 'transparent', cursor: 'pointer' }} onClick={() => { setSelectedOption(call); setOptionType('CALL'); if (call.bid) setOptPrice(call.bid.toFixed(2)); }}>{call.bid?.toFixed(2) ?? '--'}</td>
+                              <td style={{ padding: '4px 8px', textAlign: 'right', fontFamily: 'JetBrains Mono, monospace', fontWeight: 600, background: callITM ? 'var(--bg-secondary)' : 'transparent', cursor: 'pointer' }} onClick={() => { setSelectedOption(call); setOptionType('CALL'); if (call.ask) setOptPrice(call.ask.toFixed(2)); }}>{call.ask?.toFixed(2) ?? '--'}</td>
 
                               {/* Strike */}
                               <td style={{ padding: '4px 12px', textAlign: 'center', fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, fontSize: 12, background: isATM ? 'var(--accent)' : 'var(--bg-tertiary)', color: isATM ? 'white' : 'var(--text-primary)', whiteSpace: 'nowrap' }}>
@@ -542,8 +545,8 @@ export default function Charts() {
                               </td>
 
                               {/* Put side */}
-                              <td style={{ padding: '4px 8px', textAlign: 'right', fontFamily: 'JetBrains Mono, monospace', fontWeight: 600, background: putITM ? 'var(--bg-secondary)' : 'transparent', cursor: 'pointer' }} onClick={() => { if (put) { setSelectedOption(put); setOptionType('PUT'); setOptPrice(((put.bid+put.ask)/2).toFixed(2)); } }}>{put?.bid?.toFixed(2) ?? '--'}</td>
-                              <td style={{ padding: '4px 8px', textAlign: 'right', fontFamily: 'JetBrains Mono, monospace', fontWeight: 600, background: putITM ? 'var(--bg-secondary)' : 'transparent', cursor: 'pointer' }} onClick={() => { if (put) { setSelectedOption(put); setOptionType('PUT'); } }}>{put?.ask?.toFixed(2) ?? '--'}</td>
+                              <td style={{ padding: '4px 8px', textAlign: 'right', fontFamily: 'JetBrains Mono, monospace', fontWeight: 600, background: putITM ? 'var(--bg-secondary)' : 'transparent', cursor: 'pointer' }} onClick={() => { if (put) { setSelectedOption(put); setOptionType('PUT'); if (put.bid) setOptPrice(put.bid.toFixed(2)); } }}>{put?.bid?.toFixed(2) ?? '--'}</td>
+                              <td style={{ padding: '4px 8px', textAlign: 'right', fontFamily: 'JetBrains Mono, monospace', fontWeight: 600, background: putITM ? 'var(--bg-secondary)' : 'transparent', cursor: 'pointer' }} onClick={() => { if (put) { setSelectedOption(put); setOptionType('PUT'); if (put.ask) setOptPrice(put.ask.toFixed(2)); } }}>{put?.ask?.toFixed(2) ?? '--'}</td>
                               <td style={{ padding: '4px 8px', textAlign: 'right', background: putITM ? 'var(--bg-secondary)' : 'transparent', cursor: 'pointer' }} onClick={() => { if (put) { setSelectedOption(put); setOptionType('PUT'); } }}>{put ? ((put.inTheMoney ? Math.abs(put.delta ?? 0) : 1 - Math.abs(put.delta ?? 0)) * 100).toFixed(1) + '%' : '--'}</td>
                               <td style={{ padding: '4px 8px', textAlign: 'right', color: 'var(--amber)', background: putITM ? 'var(--bg-secondary)' : 'transparent', cursor: 'pointer' }} onClick={() => { if (put) { setSelectedOption(put); setOptionType('PUT'); } }}>{put?.delta?.toFixed(2) ?? '--'}</td>
                               <td style={{ padding: '4px 8px', textAlign: 'right', background: putITM ? 'var(--bg-secondary)' : 'transparent', cursor: 'pointer' }} onClick={() => { if (put) { setSelectedOption(put); setOptionType('PUT'); } }}>{put?.openInterest ?? '--'}</td>
