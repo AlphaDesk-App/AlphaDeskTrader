@@ -40,10 +40,12 @@ export default function Dashboard() {
     const sells = group.filter(o => o.orderLegCollection?.[0]?.instruction?.includes('SELL'));
     const pairs = Math.min(buys.length, sells.length);
     for (let i = 0; i < pairs; i++) {
-      const bp = buys[i]?.price ?? 0;
-      const sp = sells[i]?.price ?? 0;
+      const bp  = buys[i]?.price ?? 0;
+      const sp  = sells[i]?.price ?? 0;
       const qty = buys[i]?.filledQuantity ?? 1;
-      dailyPnl += (sp - bp) * qty;
+      const sym = buys[i]?.orderLegCollection?.[0]?.instrument?.symbol ?? '';
+      const mult = /^[A-Z]+\d{6}[CP]\d+$/.test(sym) ? 100 : 1;
+      dailyPnl += (sp - bp) * qty * mult;
     }
   });
 
@@ -66,7 +68,9 @@ export default function Dashboard() {
     const sells = group.filter(o => o.orderLegCollection?.[0]?.instruction?.includes('SELL'));
     const pairs = Math.min(buys.length, sells.length);
     for (let i = 0; i < pairs; i++) {
-      ytdPnl += ((sells[i]?.price ?? 0) - (buys[i]?.price ?? 0)) * (buys[i]?.filledQuantity ?? 1);
+      const sym2 = buys[i]?.orderLegCollection?.[0]?.instrument?.symbol ?? '';
+      const mult2 = /^[A-Z]+\d{6}[CP]\d+$/.test(sym2) ? 100 : 1;
+      ytdPnl += ((sells[i]?.price ?? 0) - (buys[i]?.price ?? 0)) * (buys[i]?.filledQuantity ?? 1) * mult2;
     }
   });
 
