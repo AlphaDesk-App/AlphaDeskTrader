@@ -156,13 +156,17 @@ export default function Dashboard() {
                   </thead>
                   <tbody>
                     {positions.map((pos: any, i: number) => {
-                      const sym    = pos.instrument?.symbol ?? '';
-                      const qty    = pos.longQuantity || pos.shortQuantity || 0;
-                      const avg    = pos.averagePrice ?? 0;
-                      const mktVal = pos.marketValue ?? 0;
-                      const dayPnl = pos.currentDayProfitLoss ?? 0;
-                      const dayPct = pos.currentDayProfitLossPercentage ?? 0;
-                      const isPos  = dayPnl >= 0;
+                      const sym      = pos.instrument?.symbol ?? '';
+                      const qty      = pos.longQuantity || pos.shortQuantity || 0;
+                      const avg      = pos.averagePrice ?? 0;
+                      const mktVal   = pos.marketValue ?? 0;
+                      const isOpt    = /^[A-Z]+\d{6}[CP]\d+$/.test(sym);
+                      const mult     = isOpt ? 100 : 1;
+                      const markPrice = qty > 0 ? mktVal / (qty * mult) : 0;
+                      // Unrealized P&L = (mark - avg cost) × qty × multiplier
+                      const unrealPnl = (markPrice - avg) * qty * mult;
+                      const unrealPct = avg > 0 ? ((markPrice - avg) / avg * 100) : 0;
+                      const isPos    = unrealPnl >= 0;
                       return (
                         <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}
                           onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-hover)')}
@@ -173,10 +177,10 @@ export default function Dashboard() {
                           <td style={{ padding: '9px 14px', textAlign: 'right', fontFamily: 'JetBrains Mono, monospace' }}>${avg.toFixed(2)}</td>
                           <td style={{ padding: '9px 14px', textAlign: 'right', fontFamily: 'JetBrains Mono, monospace' }}>${mktVal.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
                           <td style={{ padding: '9px 14px', textAlign: 'right', color: isPos ? 'var(--green)' : 'var(--red)', fontFamily: 'JetBrains Mono, monospace', fontWeight: 600 }}>
-                            {isPos ? '+' : ''}${dayPnl.toFixed(2)}
+                            {isPos ? '+' : ''}${unrealPnl.toFixed(2)}
                           </td>
                           <td style={{ padding: '9px 14px', textAlign: 'right', color: isPos ? 'var(--green)' : 'var(--red)', fontFamily: 'JetBrains Mono, monospace', fontWeight: 600 }}>
-                            {isPos ? '+' : ''}{dayPct.toFixed(2)}%
+                            {isPos ? '+' : ''}{unrealPct.toFixed(2)}%
                           </td>
                         </tr>
                       );

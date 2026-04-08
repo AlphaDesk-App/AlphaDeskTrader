@@ -439,23 +439,12 @@ export default function Charts() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <div style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, fontSize: 13, color: 'var(--accent)' }}>{symbol} — ${chain?.underlyingPrice?.toFixed(2) ?? '--'}</div>
 
-                  {/* Call/Put */}
-                  <div style={{ display: 'flex', background: 'var(--bg-tertiary)', borderRadius: 8, padding: 3 }}>
-                    {(['CALL','PUT'] as const).map(t => (
-                      <button key={t} onClick={() => setOptionType(t)}
-                        style={{ flex: 1, padding: '5px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: 600,
-                          background: optionType === t ? (t === 'CALL' ? 'var(--green)' : 'var(--red)') : 'transparent',
-                          color: optionType === t ? 'white' : 'var(--text-muted)' }}
-                      >{t}</button>
-                    ))}
-                  </div>
-
                   {/* Expiry */}
                   {chain && (
                     <div>
                       <label style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 500, display: 'block', marginBottom: 3 }}>EXPIRATION</label>
                       <select value={selectedExpiry} onChange={e => { setSelectedExpiry(e.target.value); setSelectedOption(null); }} style={{ width: '100%', fontSize: 11 }}>
-                        {Object.keys(optionType === 'CALL' ? (chain?.callExpDateMap ?? {}) : (chain?.putExpDateMap ?? {})).map(exp => <option key={exp} value={exp}>{exp.split(':')[0]}</option>)}
+                        {Object.keys(chain?.callExpDateMap ?? {}).map(exp => <option key={exp} value={exp}>{exp.split(':')[0]}</option>)}
                       </select>
                     </div>
                   )}
@@ -495,10 +484,44 @@ export default function Charts() {
                   )}
 
                   {selectedOption && (
-                    <div style={{ background: 'var(--accent-muted)', borderRadius: 8, padding: '6px 10px', fontSize: 10, color: 'var(--accent)', fontFamily: 'JetBrains Mono, monospace', lineHeight: 1.6 }}>
-                      <div style={{ fontWeight: 700 }}>{selectedOption.symbol}</div>
-                      <div>Δ{selectedOption.delta?.toFixed(2)} Γ{selectedOption.gamma?.toFixed(3)} Θ{selectedOption.theta?.toFixed(3)} IV{selectedOption.volatility?.toFixed(0)}%</div>
+                    <div style={{ background: optionType === 'CALL' ? 'var(--green-bg)' : 'var(--red-bg)', border: `1px solid ${optionType === 'CALL' ? 'var(--green)' : 'var(--red)'}`, borderRadius: 8, padding: '6px 10px', fontSize: 10, color: optionType === 'CALL' ? 'var(--green)' : 'var(--red)', fontFamily: 'JetBrains Mono, monospace', lineHeight: 1.6 }}>
+                      <div style={{ fontWeight: 700 }}>{optionType} · {selectedOption.symbol}</div>
+                      <div style={{ color: 'var(--text-secondary)' }}>Δ{selectedOption.delta?.toFixed(2)} Γ{selectedOption.gamma?.toFixed(3)} Θ{selectedOption.theta?.toFixed(3)} IV{selectedOption.volatility?.toFixed(0)}%</div>
                     </div>
+                  )}
+
+                  {/* Place Order button */}
+                  {selectedOption && (
+                    <button
+                      onClick={async () => {
+                        if (!selectedOption || !accountHash) return;
+                        const instruction = 'BUY_TO_OPEN';
+                        const q = parseInt(optQty) || 1;
+                        const order = optOrderType === 'BRACKET_OCO'
+                          ? { orderStrategyType: 'TRIGGER', session: 'NORMAL', duration: 'GOOD_TILL_CANCEL', orderType: 'LIMIT', price: parseFloat(optPrice),
+                              orderLegCollection: [{ instruction, quantity: q, instrument: { symbol: selectedOption.symbol, assetType: 'OPTION' } }],
+                              childOrderStrategies: [{ orderStrategyType: 'OCO', childOrderStrategies: [
+                                { orderStrategyType: 'SINGLE', session: 'NORMAL', duration: 'GOOD_TILL_CANCEL', orderType: 'LIMIT', price: parseFloat(optPT), orderLegCollection: [{ instruction: 'SELL_TO_CLOSE', quantity: q, instrument: { symbol: selectedOption.symbol, assetType: 'OPTION' } }] },
+                                { orderStrategyType: 'SINGLE', session: 'NORMAL', duration: 'GOOD_TILL_CANCEL', orderType: 'STOP', stopPrice: parseFloat(optSL), orderLegCollection: [{ instruction: 'SELL_TO_CLOSE', quantity: q, instrument: { symbol: selectedOption.symbol, assetType: 'OPTION' } }] },
+                              ]}] }
+                          : { orderType: optOrderType, session: 'NORMAL', duration: 'DAY', orderStrategyType: 'SINGLE',
+                              ...(optOrderType === 'LIMIT' && optPrice ? { price: parseFloat(optPrice) } : {}),
+                              orderLegCollection: [{ instruction, quantity: q, instrument: { symbol: selectedOption.symbol, assetType: 'OPTION' } }] };
+                        try {
+                          await api.placeOrder(accountHash, order);
+                          setOrderStatus('success');
+                          setOrderMsg(`BUY ${q}x ${optionType} ${selectedOption.strikePrice} placed!`);
+                          setTimeout(() => setOrderStatus('idle'), 3000);
+                        } catch (e: any) {
+                          setOrderStatus('error');
+                          setOrderMsg(e.message);
+                          setTimeout(() => setOrderStatus('idle'), 4000);
+                        }
+                      }}
+                      style={{ width: '100%', padding: '9px', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 12,
+                        background: optionType === 'CALL' ? 'var(--green)' : 'var(--red)', color: 'white' }}>
+                      BUY {optQty}x {optionType} {selectedOption?.strikePrice} @ ${optPrice || 'MKT'}
+                    </button>
                   )}
                 </div>
 
