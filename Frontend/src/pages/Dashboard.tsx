@@ -233,7 +233,7 @@ export default function Dashboard() {
             <div className="card">
               <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.05em', marginBottom: 12 }}>PERFORMANCE</div>
               {[
-                { label: 'Today\'s Trades', value: filledToday.length / 2 },
+                { label: 'Today\'s Trades', value: dailyOrders.filter(o => o.status === 'FILLED').length / 2 },
                 { label: 'Win Rate (today)', value: null },
                 { label: 'Total Orders',    value: orders.length },
               ].map(({ label, value }) => (
