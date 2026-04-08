@@ -562,21 +562,21 @@ export default function Charts() {
                       </thead>
                       <tbody>
                         {getStrikes().map((call: any, i: number) => {
-                          // Put lookup - match by expiry date prefix and strike price
+                          // Put lookup — same expiry key, match strike as float string e.g. "587.0"
                           const putExpMap = chain.putExpDateMap ?? {};
-                          const callDateStr = selectedExpiry?.split(':')[0] ?? '';
-                          const putExpKey = Object.keys(putExpMap).find(k => k.split(':')[0] === callDateStr)
-                            ?? Object.keys(putExpMap).find(k => k.startsWith(callDateStr))
-                            ?? Object.keys(putExpMap)[0] ?? '';
-                          const putMap  = putExpMap[putExpKey] ?? {};
-                          // Strike keys in putMap are strike prices as strings
-                          const putKey  = Object.keys(putMap).find(k => {
-                            const v = Object.values(putMap[k] as any);
-                            const opt = Array.isArray(v) ? v[0] : Object.values(putMap[k] as any)[0];
-                            return (opt as any)?.strikePrice === call.strikePrice;
-                          }) ?? Object.keys(putMap).find(k => parseFloat(k) === call.strikePrice);
-                          const putRaw  = putKey ? putMap[putKey] : null;
-                          const put     = putRaw ? (Array.isArray(putRaw) ? putRaw[0] : Object.values(putRaw as any)[0] as any) : null;
+                          const putExpKey = selectedExpiry && putExpMap[selectedExpiry]
+                            ? selectedExpiry
+                            : Object.keys(putExpMap)[0] ?? '';
+                          const putMap    = putExpMap[putExpKey] ?? {};
+                          // Strike keys are floats as strings: "587.0", "588.0" etc
+                          const strikeStr = call.strikePrice?.toString();
+                          const putKey    = putMap[strikeStr]
+                            ? strikeStr
+                            : Object.keys(putMap).find(k => parseFloat(k) === call.strikePrice);
+                          const putRaw    = putKey ? putMap[putKey] : null;
+                          const put       = putRaw
+                            ? (Array.isArray(putRaw) ? putRaw[0] : (Object.values(putRaw as any)[0] as any))
+                            : null;
                           const isATM   = Math.abs(call.strikePrice - (chain.underlyingPrice ?? 0)) < 1;
                           const callITM = call.strikePrice < (chain.underlyingPrice ?? 0);
                           const putITM  = call.strikePrice > (chain.underlyingPrice ?? 0);
