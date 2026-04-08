@@ -188,9 +188,9 @@ export default function Charts() {
     if (!symbol || orderTab !== 'options') return;
     setChainLoading(true);
     try {
-      const data = await api.getOptionsChain(symbol, optionType);
+      const data = await api.getOptionsChain(symbol, 'ALL');
       setChain(data);
-      const expiries = Object.keys(optionType === 'CALL' ? (data?.callExpDateMap ?? {}) : (data?.putExpDateMap ?? {}));
+      const expiries = Object.keys(data?.callExpDateMap ?? data?.putExpDateMap ?? {});
       if (expiries.length) setSelectedExpiry(expiries[0]);
     } catch { setChain(null); }
     finally { setChainLoading(false); }
@@ -219,7 +219,8 @@ export default function Charts() {
   // Options chain strikes
   const getStrikes = () => {
     if (!chain || !selectedExpiry) return [];
-    const map = optionType === 'CALL' ? chain.callExpDateMap : chain.putExpDateMap;
+    // Always use callExpDateMap for the strike list — both sides share same strikes
+    const map = chain.callExpDateMap ?? chain.putExpDateMap ?? {};
     return (Object.values(map?.[selectedExpiry] ?? {}).flat() as any[]).slice(0, 30);
   };
 
