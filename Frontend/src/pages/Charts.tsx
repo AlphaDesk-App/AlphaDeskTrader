@@ -571,9 +571,11 @@ export default function Charts() {
                           const putMap    = putExpMap[putExpKey] ?? {};
                           // Strike keys are floats as strings: "587.0", "588.0" etc
                           const strikeStr = call.strikePrice?.toString();
-                          const putKey    = putMap[strikeStr]
-                            ? strikeStr
-                            : Object.keys(putMap).find(k => parseFloat(k) === call.strikePrice);
+                          const putKey    = putMap[strikeStrDec]
+                            ? strikeStrDec
+                            : putMap[strikeStr]
+                              ? strikeStr
+                              : Object.keys(putMap).find(k => parseFloat(k) === strikeNum);
                           const putRaw    = putKey ? putMap[putKey] : null;
                           const put       = putRaw
                             ? (Array.isArray(putRaw) ? putRaw[0] : (Object.values(putRaw as any)[0] as any))
