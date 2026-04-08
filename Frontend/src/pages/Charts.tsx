@@ -571,7 +571,9 @@ export default function Charts() {
                             : Object.keys(putExpMap)[0] ?? '';
                           const putMap    = putExpMap[putExpKey] ?? {};
                           // Strike keys are floats as strings: "587.0", "588.0" etc
-                          const strikeStr = call.strikePrice?.toString();
+                          const strikeStr    = call.strikePrice?.toString();
+                          const strikeStrDec = call.strikePrice?.toFixed(1);
+                          const strikeNum    = call.strikePrice;
                           const putKey    = putMap[strikeStrDec]
                             ? strikeStrDec
                             : putMap[strikeStr]
