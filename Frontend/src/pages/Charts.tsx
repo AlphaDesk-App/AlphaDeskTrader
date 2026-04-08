@@ -492,36 +492,55 @@ export default function Charts() {
 
                   {/* Place Order button */}
                   {selectedOption && (
-                    <button
-                      onClick={async () => {
-                        if (!selectedOption || !accountHash) return;
-                        const instruction = 'BUY_TO_OPEN';
-                        const q = parseInt(optQty) || 1;
-                        const order = optOrderType === 'BRACKET_OCO'
-                          ? { orderStrategyType: 'TRIGGER', session: 'NORMAL', duration: 'GOOD_TILL_CANCEL', orderType: 'LIMIT', price: parseFloat(optPrice),
-                              orderLegCollection: [{ instruction, quantity: q, instrument: { symbol: selectedOption.symbol, assetType: 'OPTION' } }],
-                              childOrderStrategies: [{ orderStrategyType: 'OCO', childOrderStrategies: [
-                                { orderStrategyType: 'SINGLE', session: 'NORMAL', duration: 'GOOD_TILL_CANCEL', orderType: 'LIMIT', price: parseFloat(optPT), orderLegCollection: [{ instruction: 'SELL_TO_CLOSE', quantity: q, instrument: { symbol: selectedOption.symbol, assetType: 'OPTION' } }] },
-                                { orderStrategyType: 'SINGLE', session: 'NORMAL', duration: 'GOOD_TILL_CANCEL', orderType: 'STOP', stopPrice: parseFloat(optSL), orderLegCollection: [{ instruction: 'SELL_TO_CLOSE', quantity: q, instrument: { symbol: selectedOption.symbol, assetType: 'OPTION' } }] },
-                              ]}] }
-                          : { orderType: optOrderType, session: 'NORMAL', duration: 'DAY', orderStrategyType: 'SINGLE',
-                              ...(optOrderType === 'LIMIT' && optPrice ? { price: parseFloat(optPrice) } : {}),
-                              orderLegCollection: [{ instruction, quantity: q, instrument: { symbol: selectedOption.symbol, assetType: 'OPTION' } }] };
-                        try {
-                          await api.placeOrder(accountHash, order);
-                          setOrderStatus('success');
-                          setOrderMsg(`BUY ${q}x ${optionType} ${selectedOption.strikePrice} placed!`);
-                          setTimeout(() => setOrderStatus('idle'), 3000);
-                        } catch (e: any) {
-                          setOrderStatus('error');
-                          setOrderMsg(e.message);
-                          setTimeout(() => setOrderStatus('idle'), 4000);
-                        }
-                      }}
-                      style={{ width: '100%', padding: '9px', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 12,
-                        background: optionType === 'CALL' ? 'var(--green)' : 'var(--red)', color: 'white' }}>
-                      BUY {optQty}x {optionType} {selectedOption?.strikePrice} @ ${optPrice || 'MKT'}
-                    </button>
+                    <>
+                      {orderStatus === 'confirm_opt' && (
+                        <div style={{ background:'var(--amber-bg)', border:'1px solid var(--amber)', borderRadius:8, padding:'8px 10px', fontSize:11, color:'var(--amber)' }}>
+                          ⚠️ Confirm: BUY {optQty}x {optionType} {selectedOption?.strikePrice} @ ${optPrice || 'MKT'}<br/>
+                          <span style={{opacity:0.8}}>Real Schwab order</span>
+                        </div>
+                      )}
+                      {orderStatus === 'success' && <div style={{fontSize:11,color:'var(--green)',padding:'6px 10px',background:'var(--green-bg)',borderRadius:8}}>{orderMsg}</div>}
+                      {orderStatus === 'error'   && <div style={{fontSize:11,color:'var(--red)',  padding:'6px 10px',background:'var(--red-bg)',  borderRadius:8}}>{orderMsg}</div>}
+                      <button
+                        onClick={() => {
+                          if (orderStatus === 'idle') { setOrderStatus('confirm_opt' as any); return; }
+                          if (orderStatus !== ('confirm_opt' as any)) return;
+                          if (!selectedOption || !accountHash) return;
+                          const q = parseInt(optQty) || 1;
+                          const instr = 'BUY_TO_OPEN';
+                          const order = optOrderType === 'BRACKET_OCO'
+                            ? { orderStrategyType: 'TRIGGER', session: 'NORMAL', duration: 'GOOD_TILL_CANCEL', orderType: 'LIMIT', price: parseFloat(optPrice),
+                                orderLegCollection: [{ instruction: instr, quantity: q, instrument: { symbol: selectedOption.symbol, assetType: 'OPTION' } }],
+                                childOrderStrategies: [{ orderStrategyType: 'OCO', childOrderStrategies: [
+                                  { orderStrategyType: 'SINGLE', session: 'NORMAL', duration: 'GOOD_TILL_CANCEL', orderType: 'LIMIT', price: parseFloat(optPT), orderLegCollection: [{ instruction: 'SELL_TO_CLOSE', quantity: q, instrument: { symbol: selectedOption.symbol, assetType: 'OPTION' } }] },
+                                  { orderStrategyType: 'SINGLE', session: 'NORMAL', duration: 'GOOD_TILL_CANCEL', orderType: 'STOP', stopPrice: parseFloat(optSL), orderLegCollection: [{ instruction: 'SELL_TO_CLOSE', quantity: q, instrument: { symbol: selectedOption.symbol, assetType: 'OPTION' } }] },
+                                ]}] }
+                            : { orderType: optOrderType, session: 'NORMAL', duration: 'DAY', orderStrategyType: 'SINGLE',
+                                ...(optOrderType === 'LIMIT' && optPrice ? { price: parseFloat(optPrice) } : {}),
+                                orderLegCollection: [{ instruction: instr, quantity: q, instrument: { symbol: selectedOption.symbol, assetType: 'OPTION' } }] };
+                          api.placeOrder(accountHash, order)
+                            .then(() => {
+                              setOrderStatus('success');
+                              setOrderMsg(`✓ BUY ${q}x ${optionType} ${selectedOption.strikePrice} placed!`);
+                              setTimeout(() => setOrderStatus('idle'), 3000);
+                            })
+                            .catch((e: any) => {
+                              setOrderStatus('error');
+                              setOrderMsg(e.message);
+                              setTimeout(() => setOrderStatus('idle'), 4000);
+                            });
+                        }}
+                        style={{ width: '100%', padding: '9px', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 12,
+                          background: orderStatus === ('confirm_opt' as any) ? 'var(--amber)' : optionType === 'CALL' ? 'var(--green)' : 'var(--red)', color: 'white' }}>
+                        {orderStatus === ('confirm_opt' as any) ? '⚠️ Confirm Order' : `BUY ${optQty}x ${optionType} ${selectedOption?.strikePrice} @ $${optPrice || 'MKT'}`}
+                      </button>
+                      {orderStatus === ('confirm_opt' as any) && (
+                        <button onClick={() => setOrderStatus('idle')}
+                          style={{ width:'100%', padding:'6px', borderRadius:8, border:'1px solid var(--border)', background:'transparent', cursor:'pointer', fontSize:11, color:'var(--text-muted)' }}>
+                          Cancel
+                        </button>
+                      )}
+                    </>
                   )}
                 </div>
 
@@ -543,12 +562,21 @@ export default function Charts() {
                       </thead>
                       <tbody>
                         {getStrikes().map((call: any, i: number) => {
-                          // Put lookup: find matching expiry in putExpDateMap (keys may differ slightly from calls)
+                          // Put lookup - match by expiry date prefix and strike price
                           const putExpMap = chain.putExpDateMap ?? {};
-                          const putExpKey = Object.keys(putExpMap).find(k => k.startsWith(selectedExpiry?.split(':')[0] ?? '')) ?? Object.keys(putExpMap)[0] ?? '';
+                          const callDateStr = selectedExpiry?.split(':')[0] ?? '';
+                          const putExpKey = Object.keys(putExpMap).find(k => k.split(':')[0] === callDateStr)
+                            ?? Object.keys(putExpMap).find(k => k.startsWith(callDateStr))
+                            ?? Object.keys(putExpMap)[0] ?? '';
                           const putMap  = putExpMap[putExpKey] ?? {};
-                          const putKey  = Object.keys(putMap).find(k => parseFloat(k) === call.strikePrice);
-                          const put     = putKey ? (Array.isArray(putMap[putKey]) ? putMap[putKey][0] : Object.values(putMap[putKey] as any)[0] as any) : null;
+                          // Strike keys in putMap are strike prices as strings
+                          const putKey  = Object.keys(putMap).find(k => {
+                            const v = Object.values(putMap[k] as any);
+                            const opt = Array.isArray(v) ? v[0] : Object.values(putMap[k] as any)[0];
+                            return (opt as any)?.strikePrice === call.strikePrice;
+                          }) ?? Object.keys(putMap).find(k => parseFloat(k) === call.strikePrice);
+                          const putRaw  = putKey ? putMap[putKey] : null;
+                          const put     = putRaw ? (Array.isArray(putRaw) ? putRaw[0] : Object.values(putRaw as any)[0] as any) : null;
                           const isATM   = Math.abs(call.strikePrice - (chain.underlyingPrice ?? 0)) < 1;
                           const callITM = call.strikePrice < (chain.underlyingPrice ?? 0);
                           const putITM  = call.strikePrice > (chain.underlyingPrice ?? 0);

@@ -84,8 +84,13 @@ function pairTrades(orders: any[]): any[] {
       } else if (isExit && buyQueue.length > 0) {
         const entry     = buyQueue.shift();
         const qty       = Math.min(entry.filledQuantity ?? entry.quantity ?? 1, order.filledQuantity ?? order.quantity ?? 1);
-        const entryPrice = entry.price ?? entry.averagePrice ?? 0;
-        const exitPrice  = order.price ?? order.averagePrice ?? 0;
+        // Use fill price from execution legs if available (more accurate for options)
+        const getPrice = (o: any) => {
+          const execPrice = o.orderActivityCollection?.[0]?.executionLegs?.[0]?.price;
+          return execPrice ?? o.price ?? o.averagePrice ?? 0;
+        };
+        const entryPrice = getPrice(entry);
+        const exitPrice  = getPrice(order);
         const multiplier = opt ? 100 : 1;
         const pnl        = (exitPrice - entryPrice) * qty * multiplier;
 
