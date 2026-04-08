@@ -85,6 +85,7 @@ export default function Charts() {
   const [optionType, setOptionType]   = useState<'CALL'|'PUT'>('CALL');
   const [selectedExpiry, setSelectedExpiry] = useState('');
   const [selectedOption, setSelectedOption] = useState<any>(null);
+  const [optSide, setOptSide]             = useState<'BUY_TO_OPEN'|'SELL_TO_OPEN'>('BUY_TO_OPEN');
   const [chainLoading, setChainLoading] = useState(false);
   const [optOrderType, setOptOrderType] = useState<'LIMIT'|'MARKET'|'BRACKET_OCO'>('LIMIT');
   const [optQty, setOptQty]           = useState('1');
@@ -485,7 +486,7 @@ export default function Charts() {
 
                   {selectedOption && (
                     <div style={{ background: optionType === 'CALL' ? 'var(--green-bg)' : 'var(--red-bg)', border: `1px solid ${optionType === 'CALL' ? 'var(--green)' : 'var(--red)'}`, borderRadius: 8, padding: '6px 10px', fontSize: 10, color: optionType === 'CALL' ? 'var(--green)' : 'var(--red)', fontFamily: 'JetBrains Mono, monospace', lineHeight: 1.6 }}>
-                      <div style={{ fontWeight: 700 }}>{optionType} · {selectedOption.symbol}</div>
+                      <div style={{ fontWeight: 700 }}>{optSide === 'BUY_TO_OPEN' ? 'BUY' : 'SELL'} {optionType} · {selectedOption.symbol}</div>
                       <div style={{ color: 'var(--text-secondary)' }}>Δ{selectedOption.delta?.toFixed(2)} Γ{selectedOption.gamma?.toFixed(3)} Θ{selectedOption.theta?.toFixed(3)} IV{selectedOption.volatility?.toFixed(0)}%</div>
                     </div>
                   )}
@@ -495,7 +496,7 @@ export default function Charts() {
                     <>
                       {orderStatus === 'confirm_opt' && (
                         <div style={{ background:'var(--amber-bg)', border:'1px solid var(--amber)', borderRadius:8, padding:'8px 10px', fontSize:11, color:'var(--amber)' }}>
-                          ⚠️ Confirm: BUY {optQty}x {optionType} {selectedOption?.strikePrice} @ ${optPrice || 'MKT'}<br/>
+                          ⚠️ Confirm: {optSide === 'BUY_TO_OPEN' ? 'BUY' : 'SELL'} {optQty}x {optionType} {selectedOption?.strikePrice} @ ${optPrice || 'MKT'}<br/>
                           <span style={{opacity:0.8}}>Real Schwab order</span>
                         </div>
                       )}
@@ -507,7 +508,7 @@ export default function Charts() {
                           if (orderStatus !== ('confirm_opt' as any)) return;
                           if (!selectedOption || !accountHash) return;
                           const q = parseInt(optQty) || 1;
-                          const instr = 'BUY_TO_OPEN';
+                          const instr = optSide;
                           const order = optOrderType === 'BRACKET_OCO'
                             ? { orderStrategyType: 'TRIGGER', session: 'NORMAL', duration: 'GOOD_TILL_CANCEL', orderType: 'LIMIT', price: parseFloat(optPrice),
                                 orderLegCollection: [{ instruction: instr, quantity: q, instrument: { symbol: selectedOption.symbol, assetType: 'OPTION' } }],
@@ -521,7 +522,7 @@ export default function Charts() {
                           api.placeOrder(accountHash, order)
                             .then(() => {
                               setOrderStatus('success');
-                              setOrderMsg(`✓ BUY ${q}x ${optionType} ${selectedOption.strikePrice} placed!`);
+                              setOrderMsg(`✓ ${optSide === 'BUY_TO_OPEN' ? 'BUY' : 'SELL'} ${q}x ${optionType} ${selectedOption.strikePrice} placed!`);
                               setTimeout(() => setOrderStatus('idle'), 3000);
                             })
                             .catch((e: any) => {
@@ -531,8 +532,8 @@ export default function Charts() {
                             });
                         }}
                         style={{ width: '100%', padding: '9px', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 12,
-                          background: orderStatus === ('confirm_opt' as any) ? 'var(--amber)' : optionType === 'CALL' ? 'var(--green)' : 'var(--red)', color: 'white' }}>
-                        {orderStatus === ('confirm_opt' as any) ? '⚠️ Confirm Order' : `BUY ${optQty}x ${optionType} ${selectedOption?.strikePrice} @ $${optPrice || 'MKT'}`}
+                          background: orderStatus === ('confirm_opt' as any) ? 'var(--amber)' : optSide === 'BUY_TO_OPEN' ? 'var(--green)' : 'var(--red)', color: 'white' }}>
+                        {orderStatus === ('confirm_opt' as any) ? '⚠️ Confirm Order' : `${optSide === 'BUY_TO_OPEN' ? 'BUY' : 'SELL'} ${optQty}x ${optionType} ${selectedOption?.strikePrice} @ $${optPrice || 'MKT'}`}
                       </button>
                       {orderStatus === ('confirm_opt' as any) && (
                         <button onClick={() => setOrderStatus('idle')}
@@ -587,8 +588,8 @@ export default function Charts() {
                               <td style={{ padding: '4px 8px', textAlign: 'right', background: callITM ? 'var(--bg-secondary)' : 'transparent', cursor: 'pointer' }} onClick={() => { setSelectedOption(call); setOptionType('CALL'); }}>{call.openInterest ?? '--'}</td>
                               <td style={{ padding: '4px 8px', textAlign: 'right', color: 'var(--amber)', background: callITM ? 'var(--bg-secondary)' : 'transparent', cursor: 'pointer' }} onClick={() => { setSelectedOption(call); setOptionType('CALL'); }}>{call.delta?.toFixed(2) ?? '--'}</td>
                               <td style={{ padding: '4px 8px', textAlign: 'right', background: callITM ? 'var(--bg-secondary)' : 'transparent', cursor: 'pointer' }} onClick={() => { setSelectedOption(call); setOptionType('CALL'); }}>{((call.inTheMoney ? call.delta : 1 - Math.abs(call.delta ?? 0)) * 100).toFixed(1)}%</td>
-                              <td style={{ padding: '4px 8px', textAlign: 'right', fontFamily: 'JetBrains Mono, monospace', fontWeight: 600, background: callITM ? 'var(--bg-secondary)' : 'transparent', cursor: 'pointer' }} onClick={() => { setSelectedOption(call); setOptionType('CALL'); if (call.bid) setOptPrice(call.bid.toFixed(2)); }}>{call.bid?.toFixed(2) ?? '--'}</td>
-                              <td style={{ padding: '4px 8px', textAlign: 'right', fontFamily: 'JetBrains Mono, monospace', fontWeight: 600, background: callITM ? 'var(--bg-secondary)' : 'transparent', cursor: 'pointer' }} onClick={() => { setSelectedOption(call); setOptionType('CALL'); if (call.ask) setOptPrice(call.ask.toFixed(2)); }}>{call.ask?.toFixed(2) ?? '--'}</td>
+                              <td style={{ padding: '4px 8px', textAlign: 'right', fontFamily: 'JetBrains Mono, monospace', fontWeight: 600, background: callITM ? 'var(--bg-secondary)' : 'transparent', cursor: 'pointer' }} onClick={() => { setSelectedOption(call); setOptionType('CALL'); setOptSide('SELL_TO_OPEN'); if (call.bid) setOptPrice(call.bid.toFixed(2)); }}>{call.bid?.toFixed(2) ?? '--'}</td>
+                              <td style={{ padding: '4px 8px', textAlign: 'right', fontFamily: 'JetBrains Mono, monospace', fontWeight: 600, background: callITM ? 'var(--bg-secondary)' : 'transparent', cursor: 'pointer' }} onClick={() => { setSelectedOption(call); setOptionType('CALL'); setOptSide('BUY_TO_OPEN'); if (call.ask) setOptPrice(call.ask.toFixed(2)); }}>{call.ask?.toFixed(2) ?? '--'}</td>
 
                               {/* Strike */}
                               <td style={{ padding: '4px 12px', textAlign: 'center', fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, fontSize: 12, background: isATM ? 'var(--accent)' : 'var(--bg-tertiary)', color: isATM ? 'white' : 'var(--text-primary)', whiteSpace: 'nowrap' }}>
@@ -596,8 +597,8 @@ export default function Charts() {
                               </td>
 
                               {/* Put side */}
-                              <td style={{ padding: '4px 8px', textAlign: 'right', fontFamily: 'JetBrains Mono, monospace', fontWeight: 600, background: putITM ? 'var(--bg-secondary)' : 'transparent', cursor: 'pointer' }} onClick={() => { if (put) { setSelectedOption(put); setOptionType('PUT'); if (put.bid) setOptPrice(put.bid.toFixed(2)); } }}>{put?.bid?.toFixed(2) ?? '--'}</td>
-                              <td style={{ padding: '4px 8px', textAlign: 'right', fontFamily: 'JetBrains Mono, monospace', fontWeight: 600, background: putITM ? 'var(--bg-secondary)' : 'transparent', cursor: 'pointer' }} onClick={() => { if (put) { setSelectedOption(put); setOptionType('PUT'); if (put.ask) setOptPrice(put.ask.toFixed(2)); } }}>{put?.ask?.toFixed(2) ?? '--'}</td>
+                              <td style={{ padding: '4px 8px', textAlign: 'right', fontFamily: 'JetBrains Mono, monospace', fontWeight: 600, background: putITM ? 'var(--bg-secondary)' : 'transparent', cursor: 'pointer' }} onClick={() => { if (put) { setSelectedOption(put); setOptionType('PUT'); setOptSide('SELL_TO_OPEN'); if (put.bid) setOptPrice(put.bid.toFixed(2)); } }}>{put?.bid?.toFixed(2) ?? '--'}</td>
+                              <td style={{ padding: '4px 8px', textAlign: 'right', fontFamily: 'JetBrains Mono, monospace', fontWeight: 600, background: putITM ? 'var(--bg-secondary)' : 'transparent', cursor: 'pointer' }} onClick={() => { if (put) { setSelectedOption(put); setOptionType('PUT'); setOptSide('BUY_TO_OPEN'); if (put.ask) setOptPrice(put.ask.toFixed(2)); } }}>{put?.ask?.toFixed(2) ?? '--'}</td>
                               <td style={{ padding: '4px 8px', textAlign: 'right', background: putITM ? 'var(--bg-secondary)' : 'transparent', cursor: 'pointer' }} onClick={() => { if (put) { setSelectedOption(put); setOptionType('PUT'); } }}>{put ? ((put.inTheMoney ? Math.abs(put.delta ?? 0) : 1 - Math.abs(put.delta ?? 0)) * 100).toFixed(1) + '%' : '--'}</td>
                               <td style={{ padding: '4px 8px', textAlign: 'right', color: 'var(--amber)', background: putITM ? 'var(--bg-secondary)' : 'transparent', cursor: 'pointer' }} onClick={() => { if (put) { setSelectedOption(put); setOptionType('PUT'); } }}>{put?.delta?.toFixed(2) ?? '--'}</td>
                               <td style={{ padding: '4px 8px', textAlign: 'right', background: putITM ? 'var(--bg-secondary)' : 'transparent', cursor: 'pointer' }} onClick={() => { if (put) { setSelectedOption(put); setOptionType('PUT'); } }}>{put?.openInterest ?? '--'}</td>
