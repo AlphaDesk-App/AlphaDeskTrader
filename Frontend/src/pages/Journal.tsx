@@ -75,13 +75,9 @@ function pairTrades(orders: any[]): any[] {
     orders.forEach(order => {
       const leg         = order.orderLegCollection[0];
       const instruction = (leg.instruction ?? '').toUpperCase();
-      const isBuy       = instruction.includes('BUY') && !instruction.includes('TO_CLOSE');
-      const isSell      = instruction.includes('SELL') && !instruction.includes('TO_OPEN');
-      const isBTO       = instruction === 'BUY_TO_OPEN';
-      const isSTC       = instruction === 'SELL_TO_CLOSE';
-
-      const isEntry = isBuy || isBTO;
-      const isExit  = isSell || isSTC;
+      // Strict matching — only exact entry/exit instructions
+      const isEntry = instruction === 'BUY' || instruction === 'BUY_TO_OPEN';
+      const isExit  = instruction === 'SELL' || instruction === 'SELL_TO_CLOSE' || instruction === 'SELL_SHORT';
 
       if (isEntry) {
         buyQueue.push(order);

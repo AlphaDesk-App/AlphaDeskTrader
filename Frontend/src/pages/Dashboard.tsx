@@ -19,60 +19,70 @@ export default function Dashboard() {
     api.getOrders(accountHash).then(d => setOrders(d ?? [])).catch(() => {});
   }, [accountHash]);
 
+  // ── Shared FIFO pairing utility ──────────────────────────────────────────
+  const calcPnlFromOrders = (orderList: any[]): number => {
+    const isOpt  = (sym: string) => /^[A-Z]+\d{6}[CP]\d+$/.test(sym);
+    const isEntry = (instr: string) => instr === 'BUY' || instr === 'BUY_TO_OPEN';
+    const isExit  = (instr: string) => instr === 'SELL' || instr === 'SELL_TO_CLOSE' || instr === 'SELL_SHORT';
+
+    // Sort chronologically
+    const filled = orderList
+      .filter(o => o.status === 'FILLED' && o.orderLegCollection?.[0])
+      .sort((a, b) => new Date(a.enteredTime ?? 0).getTime() - new Date(b.enteredTime ?? 0).getTime());
+
+    // Group by symbol, FIFO match entries to exits
+    const bySymbol: Record<string, any[]> = {};
+    filled.forEach(o => {
+      const sym = o.orderLegCollection[0].instrument?.symbol ?? '';
+      if (!bySymbol[sym]) bySymbol[sym] = [];
+      bySymbol[sym].push(o);
+    });
+
+    let total = 0;
+    Object.entries(bySymbol).forEach(([sym, orders]) => {
+      const mult     = isOpt(sym) ? 100 : 1;
+      const buyQueue: any[] = [];
+      orders.forEach(o => {
+        const instr = (o.orderLegCollection[0].instruction ?? '').toUpperCase();
+        if (isEntry(instr)) {
+          buyQueue.push(o);
+        } else if (isExit(instr) && buyQueue.length > 0) {
+          const entry = buyQueue.shift();
+          const qty   = Math.min(entry.filledQuantity ?? entry.quantity ?? 1, o.filledQuantity ?? o.quantity ?? 1);
+          const bp    = entry.price ?? entry.averagePrice ?? 0;
+          const sp    = o.price ?? o.averagePrice ?? 0;
+          total += (sp - bp) * qty * mult;
+        }
+      });
+    });
+    return total;
+  };
+
   // P&L calculations
-  const openPnl   = positions.reduce((s: number, p: any) => s + (p.currentDayProfitLoss ?? 0), 0);
-  const filledToday = orders.filter(o => {
-    if (o.status !== 'FILLED') return false;
+  const openPnl = positions.reduce((s: number, p: any) => {
+    const sym  = p.instrument?.symbol ?? '';
+    const qty  = p.longQuantity || p.shortQuantity || 0;
+    const avg  = p.averagePrice ?? 0;
+    const mktV = p.marketValue ?? 0;
+    const mult = /^[A-Z]+\d{6}[CP]\d+$/.test(sym) ? 100 : 1;
+    const mark = qty > 0 ? mktV / (qty * mult) : 0;
+    return s + (mark - avg) * qty * mult;
+  }, 0);
+
+  const today     = new Date().toDateString();
+  const ytdStart  = new Date(new Date().getFullYear(), 0, 1);
+
+  const dailyOrders = orders.filter(o => {
     const t = o.closeTime ?? o.enteredTime;
-    return t && new Date(t).toDateString() === new Date().toDateString();
+    return t && new Date(t).toDateString() === today;
   });
-
-  // Pair today's fills for daily P&L
-  const bySymbol: Record<string, any[]> = {};
-  filledToday.forEach(o => {
-    const sym = o.orderLegCollection?.[0]?.instrument?.symbol ?? 'X';
-    if (!bySymbol[sym]) bySymbol[sym] = [];
-    bySymbol[sym].push(o);
-  });
-  let dailyPnl = 0;
-  Object.values(bySymbol).forEach(group => {
-    const buys  = group.filter(o => o.orderLegCollection?.[0]?.instruction?.includes('BUY'));
-    const sells = group.filter(o => o.orderLegCollection?.[0]?.instruction?.includes('SELL'));
-    const pairs = Math.min(buys.length, sells.length);
-    for (let i = 0; i < pairs; i++) {
-      const bp  = buys[i]?.price ?? 0;
-      const sp  = sells[i]?.price ?? 0;
-      const qty = buys[i]?.filledQuantity ?? 1;
-      const sym = buys[i]?.orderLegCollection?.[0]?.instrument?.symbol ?? '';
-      const mult = /^[A-Z]+\d{6}[CP]\d+$/.test(sym) ? 100 : 1;
-      dailyPnl += (sp - bp) * qty * mult;
-    }
-  });
-
-  // YTD P&L from all filled orders
-  const ytdStart = new Date(new Date().getFullYear(), 0, 1);
   const ytdOrders = orders.filter(o => {
-    if (o.status !== 'FILLED') return false;
     const t = o.closeTime ?? o.enteredTime;
     return t && new Date(t) >= ytdStart;
   });
-  const ytdBySymbol: Record<string, any[]> = {};
-  ytdOrders.forEach(o => {
-    const sym = o.orderLegCollection?.[0]?.instrument?.symbol ?? 'X';
-    if (!ytdBySymbol[sym]) ytdBySymbol[sym] = [];
-    ytdBySymbol[sym].push(o);
-  });
-  let ytdPnl = 0;
-  Object.values(ytdBySymbol).forEach(group => {
-    const buys  = group.filter(o => o.orderLegCollection?.[0]?.instruction?.includes('BUY'));
-    const sells = group.filter(o => o.orderLegCollection?.[0]?.instruction?.includes('SELL'));
-    const pairs = Math.min(buys.length, sells.length);
-    for (let i = 0; i < pairs; i++) {
-      const sym2 = buys[i]?.orderLegCollection?.[0]?.instrument?.symbol ?? '';
-      const mult2 = /^[A-Z]+\d{6}[CP]\d+$/.test(sym2) ? 100 : 1;
-      ytdPnl += ((sells[i]?.price ?? 0) - (buys[i]?.price ?? 0)) * (buys[i]?.filledQuantity ?? 1) * mult2;
-    }
-  });
+
+  const dailyPnl = calcPnlFromOrders(dailyOrders);
+  const ytdPnl   = calcPnlFromOrders(ytdOrders);
 
   const liquidation = balances?.liquidationValue ?? 0;
   const available   = balances?.cashAvailableForTrading ?? 0;
