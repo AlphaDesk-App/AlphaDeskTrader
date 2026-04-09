@@ -1,4 +1,6 @@
-import { useState, useEffect, useMemo } from 'react';
+import os, sys
+
+dashboard = r'''import { useState, useEffect, useMemo } from 'react';
 import { TrendingUp, BarChart2, Zap, ChevronLeft, ChevronRight } from 'lucide-react';
 import Header from '../components/Header';
 import { useAccountHash } from '../hooks/useAccountHash';
@@ -299,3 +301,14 @@ export default function Dashboard() {
     </div>
   );
 }
+'''
+
+target = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'pages', 'Dashboard.tsx')
+target = os.path.normpath(target)
+with open(target, 'w', encoding='utf-8') as f:
+    f.write(dashboard)
+print('Written to:', target)
+print('Size:', len(dashboard), 'chars')
+print('CalendarWidget present:', 'CalendarWidget' in dashboard)
+print('MarketStatusCard present:', 'MarketStatusCard' in dashboard)
+print('weeks.map present:', 'weeks.map' in dashboard)
