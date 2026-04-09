@@ -269,45 +269,46 @@ export default function Dashboard() {
               <div style={{ fontSize: 20, fontWeight: 700, fontFamily: 'JetBrains Mono, monospace', color }}>{value}</div>
             </div>
           ))}
-        </div>
 
-        {/* Market Status */}
-        {(() => {
-          const et      = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
-          const t       = et.getHours() * 60 + et.getMinutes();
-          const dow     = et.getDay(); // 0=Sun, 6=Sat
-          const isWeekend = dow === 0 || dow === 6;
-          const sessions = [
-            { label: 'Pre-Market',  hours: '4:00 – 9:30 AM',  key: 'pre',   active: !isWeekend && t >= 240 && t < 570  },
-            { label: 'Regular',     hours: '9:30 AM – 4:00 PM', key: 'open', active: !isWeekend && t >= 570 && t < 960  },
-            { label: 'After Hours', hours: '4:00 – 8:00 PM',  key: 'after', active: !isWeekend && t >= 960 && t < 1200 },
-          ];
-          const activeSession = sessions.find(s => s.active);
-          const statusLabel   = isWeekend ? 'Weekend' : activeSession ? activeSession.label : 'Closed';
-          const statusColor   = activeSession ? 'var(--green)' : 'var(--text-muted)';
-          return (
-            <div className="card" style={{ padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div style={{ width: 8, height: 8, borderRadius: '50%', background: activeSession ? 'var(--green)' : 'var(--border)', boxShadow: activeSession ? '0 0 6px var(--green)' : 'none' }}/>
-                <span style={{ fontWeight: 700, fontSize: 13, color: statusColor }}>{statusLabel}</span>
-                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                  {et.toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit' })} ET
-                </span>
-              </div>
-              <div style={{ display: 'flex', gap: 16, marginLeft: 'auto', flexWrap: 'wrap' }}>
-                {sessions.map(s => (
-                  <div key={s.key} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span className={`badge ${s.active ? 'badge-green' : 'badge-amber'}`} style={{ fontSize: 10 }}>{s.active ? 'OPEN' : 'CLOSED'}</span>
-                    <div>
-                      <div style={{ fontSize: 11, fontWeight: 500, color: s.active ? 'var(--text-primary)' : 'var(--text-muted)' }}>{s.label}</div>
-                      <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{s.hours}</div>
+          {/* Market Status card */}
+          {(() => {
+            const et        = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+            const t         = et.getHours() * 60 + et.getMinutes();
+            const dow       = et.getDay();
+            const isWeekend = dow === 0 || dow === 6;
+            const sessions  = [
+              { label: 'Pre-Mkt',    short: '4–9:30a',  key: 'pre',   active: !isWeekend && t >= 240 && t < 570  },
+              { label: 'Regular',    short: '9:30a–4p', key: 'open',  active: !isWeekend && t >= 570 && t < 960  },
+              { label: 'After Hrs',  short: '4–8p',     key: 'after', active: !isWeekend && t >= 960 && t < 1200 },
+            ];
+            const active = sessions.find(s => s.active);
+            const label  = isWeekend ? 'Weekend' : active ? active.label : 'Closed';
+            const color  = active ? 'var(--green)' : 'var(--text-muted)';
+            return (
+              <div className="card" style={{ padding: '14px 16px', gridColumn: 'span 1' }}>
+                <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.05em', marginBottom: 8 }}>MARKET STATUS</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: active ? 'var(--green)' : 'var(--border)', boxShadow: active ? '0 0 6px var(--green)' : 'none', flexShrink: 0 }}/>
+                  <span style={{ fontWeight: 700, fontSize: 14, color }}>{label}</span>
+                  <span style={{ fontSize: 10, color: 'var(--text-muted)', marginLeft: 'auto' }}>
+                    {et.toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit' })} ET
+                  </span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  {sessions.map(s => (
+                    <div key={s.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: 10, color: s.active ? 'var(--text-primary)' : 'var(--text-muted)', fontWeight: s.active ? 600 : 400 }}>{s.label}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>{s.short}</span>
+                        <span className={`badge ${s.active ? 'badge-green' : 'badge-amber'}`} style={{ fontSize: 9, padding: '1px 4px' }}>{s.active ? 'OPEN' : 'CLOSED'}</span>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
-          );
-        })()}
+            );
+          })()}
+        </div>
 
         {/* Open Positions */}
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
