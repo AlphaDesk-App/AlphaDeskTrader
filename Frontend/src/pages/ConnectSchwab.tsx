@@ -3,6 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { Zap, ExternalLink, CheckCircle, AlertCircle, Link } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
+const API = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+  ? '/api'
+  : 'https://alphadesktrader.onrender.com';
+
 export default function ConnectSchwab() {
   const { user, refreshUser } = useAuth();
   const navigate = useNavigate();
@@ -15,7 +19,7 @@ export default function ConnectSchwab() {
     setError('');
     try {
       const token = localStorage.getItem('alphaDesk_token') ?? '';
-      const res = await fetch(`${(window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? '/api' : 'https://alphadesktrader.onrender.com'}/auth/schwab/connect`, {
+      const res = await fetch(`${API}/auth/schwab/connect`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error('Failed to get auth URL');
@@ -38,7 +42,7 @@ export default function ConnectSchwab() {
       if (!code) throw new Error('No code found in URL. Copy the full address bar URL.');
       const token = localStorage.getItem('alphaDesk_token') ?? '';
       const res = await fetch(
-        `/api/auth/schwab/callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`,
+        `${API}/auth/schwab/callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       if (!res.ok) {

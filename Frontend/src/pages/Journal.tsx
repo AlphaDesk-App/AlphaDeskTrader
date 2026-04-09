@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, BarChart2, Calendar, List, Clock } from 'lucide-react';
+import { BarChart2, List, Clock } from 'lucide-react';
 import Header from '../components/Header';
 import { api } from '../services/api';
 import { useAccountHash } from '../hooks/useAccountHash';
@@ -12,7 +12,7 @@ const SETUPS = [
   'Other',
 ];
 
-const DATE_FILTERS = ['Today', 'Yesterday', 'This Week', 'This Month', 'Custom'] as const;
+const DATE_FILTERS = ['Today', 'Yesterday', 'This Week', 'This Month', 'This Year', 'Custom'] as const;
 type DateFilter = typeof DATE_FILTERS[number];
 
 function isOption(sym: string) { return /^[A-Z]+\s*\d{6}[CP]\d+$/.test(sym.trim()); }
@@ -41,6 +41,10 @@ function getDateRange(filter: DateFilter, customFrom: string, customTo: string):
     }
     case 'This Month': {
       const first = new Date(now.getFullYear(), now.getMonth(), 1);
+      return [first, end];
+    }
+    case 'This Year': {
+      const first = new Date(now.getFullYear(), 0, 1);
       return [first, end];
     }
     case 'Custom': {
@@ -114,59 +118,6 @@ function pairTrades(orders: any[]): any[] {
   });
 
   return trades.sort((a, b) => b.entryTime.getTime() - a.entryTime.getTime());
-}
-
-function CalendarView({ trades }: { trades: any[] }) {
-  const [month, setMonth] = useState(new Date());
-  const year = month.getFullYear(), mon = month.getMonth();
-  const first = new Date(year, mon, 1).getDay();
-  const days  = new Date(year, mon + 1, 0).getDate();
-
-  const byDay: Record<number, { pnl: number; count: number; wins: number }> = {};
-  trades.forEach(t => {
-    if (t.entryTime.getFullYear() === year && t.entryTime.getMonth() === mon) {
-      const d = t.entryTime.getDate();
-      if (!byDay[d]) byDay[d] = { pnl: 0, count: 0, wins: 0 };
-      byDay[d].pnl += t.pnl; byDay[d].count++; byDay[d].wins += t.win ? 1 : 0;
-    }
-  });
-
-  const cells: (number|null)[] = [];
-  for (let i = 0; i < first; i++) cells.push(null);
-  for (let d = 1; d <= days; d++) cells.push(d);
-
-  return (
-    <div>
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:16 }}>
-        <button onClick={() => setMonth(new Date(year, mon-1, 1))} style={{ background:'none', border:'none', cursor:'pointer', color:'var(--text-muted)', padding:6 }}><ChevronLeft size={18}/></button>
-        <span style={{ fontWeight:700, fontSize:15 }}>{month.toLocaleString('default',{month:'long',year:'numeric'})}</span>
-        <button onClick={() => setMonth(new Date(year, mon+1, 1))} style={{ background:'none', border:'none', cursor:'pointer', color:'var(--text-muted)', padding:6 }}><ChevronRight size={18}/></button>
-      </div>
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:4, marginBottom:8 }}>
-        {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d =>
-          <div key={d} style={{ textAlign:'center', fontSize:10, fontWeight:600, color:'var(--text-muted)', padding:'4px 0' }}>{d}</div>
-        )}
-      </div>
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:4 }}>
-        {cells.map((day, i) => {
-          if (!day) return <div key={i}/>;
-          const data = byDay[day];
-          const pos  = data && data.pnl >= 0;
-          return (
-            <div key={day} style={{ minHeight:64, borderRadius:8, padding:'6px 8px',
-              background: data ? (pos ? 'var(--green-bg)' : 'var(--red-bg)') : 'var(--bg-secondary)',
-              border:`1px solid ${data ? (pos ? 'var(--green)' : 'var(--red)') : 'var(--border)'}` }}>
-              <div style={{ fontSize:11, fontWeight:600, color:'var(--text-muted)', marginBottom:3 }}>{day}</div>
-              {data && <>
-                <div style={{ fontSize:12, fontWeight:700, color:pos?'var(--green)':'var(--red)', fontFamily:'JetBrains Mono,monospace' }}>{pos?'+':''}${data.pnl.toFixed(0)}</div>
-                <div style={{ fontSize:10, color:'var(--text-muted)' }}>{data.wins}W {data.count-data.wins}L</div>
-              </>}
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
 }
 
 function AnalyticsView({ trades }: { trades: any[] }) {
@@ -277,7 +228,7 @@ function AnalyticsView({ trades }: { trades: any[] }) {
 export default function Journal() {
   const { accountHash }           = useAccountHash();
   const [orders, setOrders]       = useState<any[]>([]);
-  const [view, setView]           = useState<'list'|'calendar'|'analytics'>('list');
+  const [view, setView]           = useState<'list'|'analytics'>('list');
   const [dateFilter, setDateFilter] = useState<DateFilter>('This Month');
   const [customFrom, setCustomFrom] = useState('');
   const [customTo,   setCustomTo]   = useState('');
@@ -369,7 +320,6 @@ export default function Journal() {
         <div style={{ display:'flex', gap:6, flexShrink:0 }}>
           {([
             {key:'list',      label:'Trades',    icon:<List size={12}/>},
-            {key:'calendar',  label:'Calendar',  icon:<Calendar size={12}/>},
             {key:'analytics', label:'Analytics', icon:<BarChart2 size={12}/>},
           ] as const).map(({key,label,icon}) => (
             <button key={key} onClick={()=>setView(key)}
@@ -383,7 +333,6 @@ export default function Journal() {
 
         {/* Content */}
         <div style={{ flex:1, overflowY:'auto' }}>
-          {view==='calendar'  && <CalendarView  trades={trades}/>}
           {view==='analytics' && <AnalyticsView trades={trades}/>}
 
           {view==='list' && (

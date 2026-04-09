@@ -441,15 +441,15 @@ export default function Charts() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <div style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, fontSize: 13, color: 'var(--accent)' }}>{symbol} — ${chain?.underlyingPrice?.toFixed(2) ?? '--'}</div>
 
-                  {/* Expiry */}
-                  {chain && (
-                    <div>
-                      <label style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 500, display: 'block', marginBottom: 3 }}>EXPIRATION</label>
-                      <select value={selectedExpiry} onChange={e => { setSelectedExpiry(e.target.value); setSelectedOption(null); }} style={{ width: '100%', fontSize: 11 }}>
-                        {Object.keys(chain?.callExpDateMap ?? {}).map(exp => <option key={exp} value={exp}>{exp.split(':')[0]}</option>)}
-                      </select>
-                    </div>
-                  )}
+                  {/* Expiry - always visible */}
+                  <div>
+                    <label style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 500, display: 'block', marginBottom: 3 }}>EXPIRATION</label>
+                    <select value={selectedExpiry} onChange={e => { setSelectedExpiry(e.target.value); setSelectedOption(null); }} style={{ width: '100%', fontSize: 11 }}
+                      disabled={!chain}>
+                      {!chain && <option value="">Loading...</option>}
+                      {chain && Object.keys(chain?.callExpDateMap ?? {}).map(exp => <option key={exp} value={exp}>{exp.split(':')[0]}</option>)}
+                    </select>
+                  </div>
 
                   {/* Order type */}
                   <div>
@@ -564,23 +564,17 @@ export default function Charts() {
                       </thead>
                       <tbody>
                         {getStrikes().map((call: any, i: number) => {
-                          // Put lookup — same expiry key, match strike as float string e.g. "587.0"
-                          const putExpMap = chain.putExpDateMap ?? {};
-                          const putExpKey = selectedExpiry && putExpMap[selectedExpiry]
-                            ? selectedExpiry
-                            : Object.keys(putExpMap)[0] ?? '';
-                          const putMap    = putExpMap[putExpKey] ?? {};
-                          // Strike keys are floats as strings: "587.0", "588.0" etc
-                          const strikeStr    = call.strikePrice?.toString();
-                          const strikeStrDec = call.strikePrice?.toFixed(1);
-                          const strikeNum    = call.strikePrice;
-                          const putKey    = putMap[strikeStrDec]
-                            ? strikeStrDec
-                            : putMap[strikeStr]
-                              ? strikeStr
-                              : Object.keys(putMap).find(k => parseFloat(k) === strikeNum);
-                          const putRaw    = putKey ? putMap[putKey] : null;
-                          const put       = putRaw
+                          // Put lookup — same expiry key, try "587.0" then "587" then float scan
+                          const putExpMap  = chain.putExpDateMap ?? {};
+                          const putExpKey  = putExpMap[selectedExpiry] ? selectedExpiry : (Object.keys(putExpMap)[0] ?? '');
+                          const putMap     = putExpMap[putExpKey] ?? {};
+                          const strikeDec  = call.strikePrice?.toFixed(1) ?? '';
+                          const strikeInt  = call.strikePrice?.toString() ?? '';
+                          const putKey     = putMap[strikeDec] ? strikeDec
+                                           : putMap[strikeInt] ? strikeInt
+                                           : Object.keys(putMap).find(k => parseFloat(k) === call.strikePrice);
+                          const putRaw     = putKey ? putMap[putKey] : null;
+                          const put        = putRaw
                             ? (Array.isArray(putRaw) ? putRaw[0] : (Object.values(putRaw as any)[0] as any))
                             : null;
                           const isATM   = Math.abs(call.strikePrice - (chain.underlyingPrice ?? 0)) < 1;

@@ -1,12 +1,11 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, BarChart2, CandlestickChart, Briefcase, ClipboardList, BookOpen, Settings, Zap } from 'lucide-react';
+import { LayoutDashboard, BarChart2, CandlestickChart, Briefcase, BookOpen, Settings, Zap } from 'lucide-react';
 
 const navItems = [
   { to: '/',          icon: LayoutDashboard,  label: 'Dashboard'  },
   { to: '/markets',   icon: BarChart2,         label: 'Markets'    },
   { to: '/charts',    icon: CandlestickChart,  label: 'Charts'     },
   { to: '/positions', icon: Briefcase,         label: 'Positions'  },
-  { to: '/orders',    icon: ClipboardList,     label: 'Orders'     },
   { to: '/journal',   icon: BookOpen,          label: 'Journal'    },
 ];
 
