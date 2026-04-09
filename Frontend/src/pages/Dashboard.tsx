@@ -51,9 +51,9 @@ function pairTrades(orders: any[]) {
 function CalendarWidget({ trades }: { trades: any[] }) {
   const [month, setMonth] = useState(new Date());
   const year = month.getFullYear(), mon = month.getMonth();
-  const first = new Date(year, mon, 1).getDay();
   const days  = new Date(year, mon + 1, 0).getDate();
 
+  // Build day data
   const byDay: Record<number, { pnl: number; count: number; wins: number }> = {};
   trades.forEach(t => {
     if (t.entryTime.getFullYear() === year && t.entryTime.getMonth() === mon) {
@@ -63,17 +63,27 @@ function CalendarWidget({ trades }: { trades: any[] }) {
     }
   });
 
-  const cells: (number|null)[] = [];
-  for (let i = 0; i < first; i++) cells.push(null);
-  for (let d = 1; d <= days; d++) cells.push(d);
+  // Build weeks: each week is an array of 7 day numbers (null = empty)
+  // We always start weeks on Sunday
+  const firstDow = new Date(year, mon, 1).getDay(); // 0=Sun
+  const weeks: (number|null)[][] = [];
+  let week: (number|null)[] = Array(firstDow).fill(null);
+  for (let d = 1; d <= days; d++) {
+    week.push(d);
+    if (week.length === 7) { weeks.push(week); week = []; }
+  }
+  if (week.length > 0) {
+    while (week.length < 7) week.push(null);
+    weeks.push(week);
+  }
 
-  const monthPnl   = Object.values(byDay).reduce((s, d) => s + d.pnl, 0);
+  const monthPnl    = Object.values(byDay).reduce((s, d) => s + d.pnl, 0);
   const monthTrades = Object.values(byDay).reduce((s, d) => s + d.count, 0);
   const monthWins   = Object.values(byDay).reduce((s, d) => s + d.wins, 0);
 
   return (
     <div className="card" style={{ padding: 20 }}>
-      {/* Calendar header */}
+      {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
         <button onClick={() => setMonth(new Date(year, mon-1, 1))}
           style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 6, borderRadius: 6 }}>
@@ -94,34 +104,76 @@ function CalendarWidget({ trades }: { trades: any[] }) {
         </button>
       </div>
 
-      {/* Day headers */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 3, marginBottom: 4 }}>
+      {/* Column headers: 7 day cols + 1 weekly summary col */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr) 80px', gap: 3, marginBottom: 4 }}>
         {['Su','Mo','Tu','We','Th','Fr','Sa'].map(d =>
           <div key={d} style={{ textAlign: 'center', fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', padding: '3px 0' }}>{d}</div>
         )}
+        <div style={{ textAlign: 'center', fontSize: 10, fontWeight: 600, color: 'var(--accent)', padding: '3px 0' }}>Week</div>
       </div>
 
-      {/* Calendar grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 3 }}>
-        {cells.map((day, i) => {
-          if (!day) return <div key={i}/>;
-          const data = byDay[day];
-          const pos  = data && data.pnl >= 0;
+      {/* Weeks */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+        {weeks.map((wk, wi) => {
+          // Compute weekly totals
+          const wkStats = wk.reduce((acc, day) => {
+            if (day && byDay[day]) {
+              acc.pnl   += byDay[day].pnl;
+              acc.count += byDay[day].count;
+              acc.wins  += byDay[day].wins;
+            }
+            return acc;
+          }, { pnl: 0, count: 0, wins: 0 });
+          const wkPos = wkStats.pnl >= 0;
+
           return (
-            <div key={day} style={{
-              minHeight: 56, borderRadius: 6, padding: '5px 6px',
-              background: data ? (pos ? 'var(--green-bg)' : 'var(--red-bg)') : 'var(--bg-secondary)',
-              border: `1px solid ${data ? (pos ? 'var(--green)' : 'var(--red)') : 'var(--border)'}`,
-            }}>
-              <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 2 }}>{day}</div>
-              {data && (
-                <>
-                  <div style={{ fontSize: 11, fontWeight: 700, fontFamily: 'JetBrains Mono, monospace', color: pos ? 'var(--green)' : 'var(--red)' }}>
-                    {pos ? '+' : ''}${data.pnl.toFixed(0)}
+            <div key={wi} style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr) 80px', gap: 3 }}>
+              {wk.map((day, di) => {
+                if (!day) return <div key={di} style={{ minHeight: 56 }}/>;
+                const data = byDay[day];
+                const pos  = data && data.pnl >= 0;
+                return (
+                  <div key={di} style={{
+                    minHeight: 56, borderRadius: 6, padding: '5px 6px',
+                    background: data ? (pos ? 'var(--green-bg)' : 'var(--red-bg)') : 'var(--bg-secondary)',
+                    border: `1px solid ${data ? (pos ? 'var(--green)' : 'var(--red)') : 'var(--border)'}`,
+                  }}>
+                    <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 2 }}>{day}</div>
+                    {data && (
+                      <>
+                        <div style={{ fontSize: 11, fontWeight: 700, fontFamily: 'JetBrains Mono, monospace', color: pos ? 'var(--green)' : 'var(--red)' }}>
+                          {pos ? '+' : ''}${data.pnl.toFixed(0)}
+                        </div>
+                        <div style={{ fontSize: 9, color: 'var(--text-muted)' }}>{data.wins}W {data.count-data.wins}L</div>
+                      </>
+                    )}
                   </div>
-                  <div style={{ fontSize: 9, color: 'var(--text-muted)' }}>{data.wins}W {data.count - data.wins}L</div>
-                </>
-              )}
+                );
+              })}
+
+              {/* Weekly summary cell */}
+              <div style={{
+                minHeight: 56, borderRadius: 6, padding: '5px 8px',
+                background: wkStats.count > 0 ? (wkPos ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)') : 'var(--bg-tertiary)',
+                border: `1px solid ${wkStats.count > 0 ? (wkPos ? 'var(--green)' : 'var(--red)') : 'var(--border)'}`,
+                display: 'flex', flexDirection: 'column', justifyContent: 'center',
+              }}>
+                {wkStats.count > 0 ? (
+                  <>
+                    <div style={{ fontSize: 11, fontWeight: 700, fontFamily: 'JetBrains Mono, monospace', color: wkPos ? 'var(--green)' : 'var(--red)', marginBottom: 2 }}>
+                      {wkPos ? '+' : ''}${wkStats.pnl.toFixed(0)}
+                    </div>
+                    <div style={{ fontSize: 9, color: wkPos ? 'var(--green)' : 'var(--red)', fontWeight: 600 }}>
+                      {wkStats.wins}W {wkStats.count-wkStats.wins}L
+                    </div>
+                    <div style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 1 }}>
+                      {(wkStats.wins/wkStats.count*100).toFixed(0)}%
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ fontSize: 9, color: 'var(--text-muted)', textAlign: 'center' }}>—</div>
+                )}
+              </div>
             </div>
           );
         })}
@@ -218,6 +270,44 @@ export default function Dashboard() {
             </div>
           ))}
         </div>
+
+        {/* Market Status */}
+        {(() => {
+          const et      = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+          const t       = et.getHours() * 60 + et.getMinutes();
+          const dow     = et.getDay(); // 0=Sun, 6=Sat
+          const isWeekend = dow === 0 || dow === 6;
+          const sessions = [
+            { label: 'Pre-Market',  hours: '4:00 – 9:30 AM',  key: 'pre',   active: !isWeekend && t >= 240 && t < 570  },
+            { label: 'Regular',     hours: '9:30 AM – 4:00 PM', key: 'open', active: !isWeekend && t >= 570 && t < 960  },
+            { label: 'After Hours', hours: '4:00 – 8:00 PM',  key: 'after', active: !isWeekend && t >= 960 && t < 1200 },
+          ];
+          const activeSession = sessions.find(s => s.active);
+          const statusLabel   = isWeekend ? 'Weekend' : activeSession ? activeSession.label : 'Closed';
+          const statusColor   = activeSession ? 'var(--green)' : 'var(--text-muted)';
+          return (
+            <div className="card" style={{ padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ width: 8, height: 8, borderRadius: '50%', background: activeSession ? 'var(--green)' : 'var(--border)', boxShadow: activeSession ? '0 0 6px var(--green)' : 'none' }}/>
+                <span style={{ fontWeight: 700, fontSize: 13, color: statusColor }}>{statusLabel}</span>
+                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                  {et.toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit' })} ET
+                </span>
+              </div>
+              <div style={{ display: 'flex', gap: 16, marginLeft: 'auto', flexWrap: 'wrap' }}>
+                {sessions.map(s => (
+                  <div key={s.key} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span className={`badge ${s.active ? 'badge-green' : 'badge-amber'}`} style={{ fontSize: 10 }}>{s.active ? 'OPEN' : 'CLOSED'}</span>
+                    <div>
+                      <div style={{ fontSize: 11, fontWeight: 500, color: s.active ? 'var(--text-primary)' : 'var(--text-muted)' }}>{s.label}</div>
+                      <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{s.hours}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Open Positions */}
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
