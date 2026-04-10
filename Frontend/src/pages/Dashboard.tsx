@@ -13,33 +13,8 @@ function formatSym(sym: string) {
   return `${u} $${parseInt(strike)/1000}${type} ${mo}/${d}/20${y}`;
 }
 
-function calcPnl(orders: any[]): number {
-  const filled = orders
-    .filter(o => o.status === 'FILLED' && o.orderLegCollection?.[0])
-    .sort((a, b) => new Date(a.enteredTime ?? 0).getTime() - new Date(b.enteredTime ?? 0).getTime());
-  const bySymbol: Record<string, any[]> = {};
-  filled.forEach(o => {
-    const sym = o.orderLegCollection[0].instrument?.symbol ?? '';
-    if (!bySymbol[sym]) bySymbol[sym] = [];
-    bySymbol[sym].push(o);
-  });
-  let total = 0;
-  Object.entries(bySymbol).forEach(([sym, ords]) => {
-    const mult = isOpt(sym) ? 100 : 1;
-    const q: any[] = [];
-    ords.forEach(o => {
-      const instr = (o.orderLegCollection[0].instruction ?? '').toUpperCase();
-      if (instr === 'BUY' || instr === 'BUY_TO_OPEN') { q.push(o); }
-      else if ((instr === 'SELL' || instr === 'SELL_TO_CLOSE' || instr === 'SELL_SHORT') && q.length > 0) {
-        const entry = q.shift();
-        const qty   = Math.min(entry.filledQuantity ?? 1, o.filledQuantity ?? 1);
-        total += (( o.price ?? o.averagePrice ?? 0) - (entry.price ?? entry.averagePrice ?? 0)) * qty * mult;
-      }
-    });
-  });
-  return total;
-}
-
+// Uses execution leg fill price first (most accurate), then falls back to averagePrice/price.
+// Matches the Journal's logic so Daily P&L and Calendar are consistent with Journal.
 function pairTrades(orders: any[]) {
   const filled = orders
     .filter(o => o.status === 'FILLED' && o.orderLegCollection?.[0])
@@ -59,11 +34,21 @@ function pairTrades(orders: any[]) {
       if (instr === 'BUY' || instr === 'BUY_TO_OPEN') { q.push(o); }
       else if ((instr === 'SELL' || instr === 'SELL_TO_CLOSE' || instr === 'SELL_SHORT') && q.length > 0) {
         const entry = q.shift();
-        const qty   = Math.min(entry.filledQuantity ?? 1, o.filledQuantity ?? 1);
-        const bp    = entry.price ?? entry.averagePrice ?? 0;
-        const sp    = o.price ?? o.averagePrice ?? 0;
-        const pnl   = (sp - bp) * qty * mult;
-        trades.push({ entryTime: new Date(entry.enteredTime ?? Date.now()), pnl, win: pnl > 0 });
+        const qty   = Math.min(entry.filledQuantity ?? entry.quantity ?? 1, o.filledQuantity ?? o.quantity ?? 1);
+        // Execution leg price is the actual fill — most accurate for options
+        const getPrice = (ord: any) => {
+          const execPrice = ord.orderActivityCollection?.[0]?.executionLegs?.[0]?.price;
+          return execPrice ?? ord.averagePrice || ord.price || 0;
+        };
+        const bp  = getPrice(entry);
+        const sp  = getPrice(o);
+        const pnl = (sp - bp) * qty * mult;
+        trades.push({
+          entryTime: new Date(entry.enteredTime ?? Date.now()),
+          exitTime:  new Date(o.enteredTime ?? Date.now()),
+          pnl,
+          win: pnl > 0,
+        });
       }
     });
   });
@@ -117,10 +102,12 @@ function CalendarWidget({ trades }: { trades: any[] }) {
   });
   const { year, month } = current;
 
+  // Group by EXIT date (the day P&L was actually realized)
   const byDay: Record<number, { pnl: number; count: number; wins: number }> = {};
   trades.forEach(t => {
-    if (t.entryTime.getFullYear() === year && t.entryTime.getMonth() === month) {
-      const d = t.entryTime.getDate();
+    const exitDate = t.exitTime instanceof Date ? t.exitTime : new Date(t.exitTime);
+    if (exitDate.getFullYear() === year && exitDate.getMonth() === month) {
+      const d = exitDate.getDate();
       if (!byDay[d]) byDay[d] = { pnl: 0, count: 0, wins: 0 };
       byDay[d].pnl += t.pnl; byDay[d].count++; byDay[d].wins += t.win ? 1 : 0;
     }
@@ -177,7 +164,7 @@ function CalendarWidget({ trades }: { trades: any[] }) {
       </div>
 
       {/* Day headers + Week header */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr) 80px', gap: 3, marginBottom: 3 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr) 80px', gap: 4, marginBottom: 4 }}>
         {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d => (
           <div key={d} style={{ textAlign: 'center', fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', padding: '3px 0' }}>{d}</div>
         ))}
@@ -185,7 +172,7 @@ function CalendarWidget({ trades }: { trades: any[] }) {
       </div>
 
       {/* Week rows */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
         {weeks.map((wk, wi) => {
           const wkTotals = wk.reduce((acc, day) => {
             if (day && byDay[day]) {
@@ -198,24 +185,24 @@ function CalendarWidget({ trades }: { trades: any[] }) {
           const wkPos = wkTotals.pnl >= 0;
 
           return (
-            <div key={wi} style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr) 80px', gap: 3 }}>
+            <div key={wi} style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr) 80px', gap: 4 }}>
               {wk.map((day, di) => {
-                if (!day) return <div key={di} style={{ minHeight: 54 }} />;
+                if (!day) return <div key={di} style={{ minHeight: 70 }} />;
                 const data = byDay[day];
                 const pos  = data && data.pnl >= 0;
                 return (
                   <div key={di} style={{
-                    minHeight: 54, borderRadius: 6, padding: '5px 6px',
+                    minHeight: 70, borderRadius: 6, padding: '6px 8px',
                     background: data ? (pos ? 'var(--green-bg)' : 'var(--red-bg)') : 'var(--bg-secondary)',
                     border: `1px solid ${data ? (pos ? 'var(--green)' : 'var(--red)') : 'var(--border)'}`,
                   }}>
-                    <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 2 }}>{day}</div>
+                    <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 4 }}>{day}</div>
                     {data && (
                       <>
-                        <div style={{ fontSize: 11, fontWeight: 700, fontFamily: 'JetBrains Mono, monospace', color: pos ? 'var(--green)' : 'var(--red)' }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, fontFamily: 'JetBrains Mono, monospace', color: pos ? 'var(--green)' : 'var(--red)' }}>
                           {pos ? '+' : ''}${data.pnl.toFixed(0)}
                         </div>
-                        <div style={{ fontSize: 9, color: 'var(--text-muted)' }}>{data.wins}W {data.count - data.wins}L</div>
+                        <div style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 2 }}>{data.wins}W {data.count - data.wins}L</div>
                       </>
                     )}
                   </div>
@@ -224,20 +211,20 @@ function CalendarWidget({ trades }: { trades: any[] }) {
 
               {/* Weekly summary */}
               <div style={{
-                minHeight: 54, borderRadius: 6, padding: '6px 8px',
+                minHeight: 70, borderRadius: 6, padding: '6px 8px',
                 background: wkTotals.count > 0 ? (wkPos ? 'var(--green-bg)' : 'var(--red-bg)') : 'var(--bg-tertiary)',
                 border: `1px solid ${wkTotals.count > 0 ? (wkPos ? 'var(--green)' : 'var(--red)') : 'var(--border)'}`,
                 display: 'flex', flexDirection: 'column', justifyContent: 'center',
               }}>
                 {wkTotals.count > 0 ? (
                   <>
-                    <div style={{ fontSize: 11, fontWeight: 700, fontFamily: 'JetBrains Mono, monospace', color: wkPos ? 'var(--green)' : 'var(--red)' }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, fontFamily: 'JetBrains Mono, monospace', color: wkPos ? 'var(--green)' : 'var(--red)' }}>
                       {wkPos ? '+' : ''}${wkTotals.pnl.toFixed(0)}
                     </div>
-                    <div style={{ fontSize: 9, color: wkPos ? 'var(--green)' : 'var(--red)', fontWeight: 600 }}>
+                    <div style={{ fontSize: 9, color: wkPos ? 'var(--green)' : 'var(--red)', fontWeight: 600, marginTop: 2 }}>
                       {wkTotals.wins}W {wkTotals.count - wkTotals.wins}L
                     </div>
-                    <div style={{ fontSize: 9, color: 'var(--text-muted)' }}>
+                    <div style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 1 }}>
                       {Math.round(wkTotals.wins / wkTotals.count * 100)}%
                     </div>
                   </>
@@ -257,6 +244,7 @@ function CalendarWidget({ trades }: { trades: any[] }) {
 export default function Dashboard() {
   const { accountHash, positions, balances, orders } = useApp();
 
+  // Unrealized P&L on currently open positions
   const openPnl = positions.reduce((s: number, p: any) => {
     const sym   = p.instrument?.symbol ?? '';
     const qty   = p.longQuantity || p.shortQuantity || 0;
@@ -270,16 +258,21 @@ export default function Dashboard() {
   const todayStr = new Date().toDateString();
   const ytdStart = new Date(new Date().getFullYear(), 0, 1);
 
-  const dailyPnl = calcPnl(orders.filter(o => {
-    const t = o.closeTime ?? o.enteredTime;
-    return t && new Date(t).toDateString() === todayStr;
-  }));
-  const ytdPnl = calcPnl(orders.filter(o => {
-    const t = o.closeTime ?? o.enteredTime;
-    return t && new Date(t) >= ytdStart;
-  }));
+  // All paired closed trades using accurate execution-leg fill prices
+  const trades = useMemo(() => pairTrades(orders), [orders]);
 
-  const trades      = useMemo(() => pairTrades(orders), [orders]);
+  // Daily P&L: closed trades where the EXIT was today (matches Journal)
+  const dailyPnl = trades
+    .filter(t => t.exitTime.toDateString() === todayStr)
+    .reduce((s, t) => s + t.pnl, 0);
+
+  // YTD P&L: realized closed trades since Jan 1 + current open unrealized
+  // This matches ThinkorSwim which includes both realized and unrealized
+  const realizedYtd = trades
+    .filter(t => t.exitTime >= ytdStart)
+    .reduce((s, t) => s + t.pnl, 0);
+  const ytdPnl = realizedYtd + openPnl;
+
   const liquidation = balances?.liquidationValue ?? 0;
   const available   = balances?.cashAvailableForTrading ?? 0;
   const buyingPower = balances?.buyingPowerNonMarginableTrade ?? balances?.dayTradingBuyingPower ?? 0;
