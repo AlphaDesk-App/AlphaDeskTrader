@@ -42,8 +42,8 @@ function pairTrades(orders: any[]) {
         };
         const bp  = getPrice(entry);
         const sp  = getPrice(o);
-        // Skip trades where either price is missing — prevents phantom P&L from 0-price orders
-        if (!bp || !sp) return;
+        // Skip only when BOTH prices are zero — prevents phantom P&L from unexecuted/cancelled orders
+        if (bp === 0 && sp === 0) return;
         const pnl = (sp - bp) * qty * mult;
         trades.push({
           entryTime: new Date(entry.enteredTime ?? Date.now()),

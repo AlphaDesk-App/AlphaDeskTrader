@@ -95,7 +95,13 @@ class SchwabClientDB:
     async def place_order(self, account_hash, order):
         r = httpx.post(f"{TRADER_BASE}/accounts/{account_hash}/orders",
             headers={**await self._headers(), "Content-Type": "application/json"}, json=order)
-        r.raise_for_status()
+        if not r.is_success:
+            # Propagate Schwab's actual error body so the frontend can display it
+            try:
+                detail = r.json()
+            except Exception:
+                detail = r.text
+            raise Exception(f"Schwab {r.status_code}: {detail}")
         location = r.headers.get("location", "")
         return {"order_id": location.split("/")[-1] if location else None, "status": "placed"}
 

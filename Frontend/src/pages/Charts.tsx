@@ -4,6 +4,7 @@ import { Search, ChevronDown, Settings2 } from 'lucide-react';
 import Header from '../components/Header';
 import { api } from '../services/api';
 import { useAccountHash } from '../hooks/useAccountHash';
+import { useQuote } from '../hooks/useQuote';
 
 interface Candle { time: number; open: number; high: number; low: number; close: number; volume: number; }
 interface Indicators { pdLevels: boolean; pmLevels: boolean; orLevels: boolean; ema9: boolean; ema20: boolean; ema50: boolean; fvg: boolean; }
@@ -93,17 +94,14 @@ export default function Charts() {
   const [optPT, setOptPT]             = useState('');
   const [optSL, setOptSL]             = useState('');
 
-  // Live quote for order form
-  const [liveQuote, setLiveQuote]     = useState<any>(null);
+  // Live quote via WebSocket
+  const { data: quoteWsData } = useQuote(symbol);
+  const liveQuote = quoteWsData?.[symbol]?.quote ?? quoteWsData?.[symbol] ?? null;
 
-  // Fetch live quote when symbol changes
+  // Pre-fill price field when live quote arrives
   useEffect(() => {
-    if (!symbol) return;
-    api.getQuote(symbol).then(data => {
-      const q = data?.[symbol]?.quote ?? data?.[symbol] ?? null;
-      setLiveQuote(q);
-      if (q?.askPrice) setPrice(q.askPrice.toFixed(2));
-    }).catch(() => {});
+    if (liveQuote?.askPrice && !price) setPrice(liveQuote.askPrice.toFixed(2));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [symbol]);
 
   // Init chart
@@ -145,6 +143,14 @@ export default function Charts() {
   }, [symbol, timeframe]);
 
   useEffect(() => { fetchCandles(); }, [fetchCandles]);
+
+  // Live candle polling — refresh every 60s for intraday timeframes
+  useEffect(() => {
+    const intraday = ['1m','2m','5m','15m','30m','1h'];
+    if (!intraday.includes(timeframe)) return;
+    const id = setInterval(() => { fetchCandles(); }, 60_000);
+    return () => clearInterval(id);
+  }, [fetchCandles, timeframe]);
 
   // Update chart
   useEffect(() => {
@@ -194,7 +200,7 @@ export default function Charts() {
       if (expiries.length) setSelectedExpiry(expiries[0]);
     } catch { setChain(null); }
     finally { setChainLoading(false); }
-  }, [symbol, optionType, orderTab]);
+  }, [symbol, orderTab]);
 
   useEffect(() => { loadChain(); }, [loadChain]);
 
@@ -378,6 +384,18 @@ export default function Charts() {
                     </div>
                   </div>
 
+                  {/* Preset qty buttons */}
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    {[5, 10, 15, 20].map(n => (
+                      <button key={n} onClick={() => setQty(String(n))}
+                        style={{ flex: 1, padding: '4px 0', borderRadius: 6, border: `1px solid ${qty === String(n) ? 'var(--accent)' : 'var(--border)'}`, cursor: 'pointer', fontSize: 11, fontWeight: 600,
+                          background: qty === String(n) ? 'var(--accent)' : 'var(--bg-tertiary)',
+                          color: qty === String(n) ? 'white' : 'var(--text-secondary)' }}>
+                        {n}
+                      </button>
+                    ))}
+                  </div>
+
                   {/* Price fields */}
                   {!isBracket && orderType !== 'MARKET' && (
                     <div>
@@ -472,6 +490,18 @@ export default function Charts() {
                         <input type="number" step="0.01" value={optPrice} onChange={e => setOptPrice(e.target.value)} placeholder="0.00" style={{ width: '100%', fontSize: 11 }} />
                       </div>
                     )}
+                  </div>
+
+                  {/* Preset contract qty buttons */}
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    {[5, 10, 15, 20].map(n => (
+                      <button key={n} onClick={() => setOptQty(String(n))}
+                        style={{ flex: 1, padding: '4px 0', borderRadius: 6, border: `1px solid ${optQty === String(n) ? 'var(--accent)' : 'var(--border)'}`, cursor: 'pointer', fontSize: 11, fontWeight: 600,
+                          background: optQty === String(n) ? 'var(--accent)' : 'var(--bg-tertiary)',
+                          color: optQty === String(n) ? 'white' : 'var(--text-secondary)' }}>
+                        {n}
+                      </button>
+                    ))}
                   </div>
 
                   {optOrderType === 'BRACKET_OCO' && (
@@ -617,3 +647,4 @@ export default function Charts() {
     </div>
   );
 }
+                                                                                                                                                                
