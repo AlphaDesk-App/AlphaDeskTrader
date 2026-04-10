@@ -2,22 +2,23 @@ import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
 import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider } from './context/AuthContext';
+import { AppProvider } from './context/AppContext';
 import AuthGuard from './components/AuthGuard';
 import Layout from './components/Layout';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import ConnectSchwab from './pages/ConnectSchwab';
+import SchwabCallback from './pages/SchwabCallback';
 import Dashboard from './pages/Dashboard';
 import Markets from './pages/Markets';
 import Charts from './pages/Charts';
 import Positions from './pages/Positions';
-import Orders from './pages/Orders';
 import Journal from './pages/Journal';
 import Settings from './pages/Settings';
 
 const HOTKEY_ROUTES: Record<string, string> = {
   '1': '/', '2': '/markets', '3': '/charts',
-  '4': '/positions', '5': '/orders', '6': '/journal',
+  '4': '/positions', '5': '/journal',
 };
 
 function HotkeyListener() {
@@ -41,28 +42,27 @@ export default function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <BrowserRouter>
-          <HotkeyListener />
-          <Routes>
-            {/* Public routes */}
-            <Route path="/login"          element={<Login />} />
-            <Route path="/register"       element={<Register />} />
-            <Route path="/connect-schwab" element={<ConnectSchwab />} />
-
-            {/* Protected routes */}
-            <Route element={<AuthGuard />}>
-              <Route path="/" element={<Layout />}>
-                <Route index            element={<Dashboard />} />
-                <Route path="markets"   element={<Markets />} />
-                <Route path="charts"    element={<Charts />} />
-                <Route path="positions" element={<Positions />} />
-                <Route path="orders"    element={<Orders />} />
-                <Route path="journal"   element={<Journal />} />
-                <Route path="settings"  element={<Settings />} />
+        <AppProvider>
+          <BrowserRouter>
+            <HotkeyListener />
+            <Routes>
+              <Route path="/login"           element={<Login />} />
+              <Route path="/register"        element={<Register />} />
+              <Route path="/connect-schwab"  element={<ConnectSchwab />} />
+              <Route path="/schwab-callback" element={<SchwabCallback />} />
+              <Route element={<AuthGuard />}>
+                <Route path="/" element={<Layout />}>
+                  <Route index            element={<Dashboard />} />
+                  <Route path="markets"   element={<Markets />} />
+                  <Route path="charts"    element={<Charts />} />
+                  <Route path="positions" element={<Positions />} />
+                  <Route path="journal"   element={<Journal />} />
+                  <Route path="settings"  element={<Settings />} />
+                </Route>
               </Route>
-            </Route>
-          </Routes>
-        </BrowserRouter>
+            </Routes>
+          </BrowserRouter>
+        </AppProvider>
       </AuthProvider>
     </ThemeProvider>
   );

@@ -1,8 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { BarChart2, List, Clock } from 'lucide-react';
 import Header from '../components/Header';
-import { api } from '../services/api';
-import { useAccountHash } from '../hooks/useAccountHash';
+import { useApp } from '../context/AppContext';
 
 const SETUPS = [
   'Opening Range FVG Breakout Bullish',
@@ -226,8 +225,7 @@ function AnalyticsView({ trades }: { trades: any[] }) {
 }
 
 export default function Journal() {
-  const { accountHash }           = useAccountHash();
-  const [orders, setOrders]       = useState<any[]>([]);
+  const { orders } = useApp();
   const [view, setView]           = useState<'list'|'analytics'>('list');
   const [dateFilter, setDateFilter] = useState<DateFilter>('This Month');
   const [customFrom, setCustomFrom] = useState('');
@@ -239,11 +237,6 @@ export default function Journal() {
   const [saved, setSaved] = useState<Record<string,{setup:string;notes:string}>>(() => {
     try { return JSON.parse(localStorage.getItem('alphaDesk_journal')?? '{}'); } catch { return {}; }
   });
-
-  useEffect(() => {
-    if (!accountHash) return;
-    api.getOrders(accountHash).then(d => setOrders(Array.isArray(d)?d:[])).catch(()=>{});
-  }, [accountHash]);
 
   // Pair trades and apply saved metadata
   const allTrades = useMemo(() =>

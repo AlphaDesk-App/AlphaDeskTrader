@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Header from '../components/Header';
 import { api } from '../services/api';
-import { useAccountHash } from '../hooks/useAccountHash';
-import { useLiveOrders } from '../hooks/useLiveOrders';
+import { useApp } from '../context/AppContext';
 import { useColumnWidths, useRowHeight } from '../hooks/useResizable';
 
 function isOption(symbol: string) { return /^[A-Z]+\d{6}[CP]\d+$/.test(symbol); }
@@ -20,8 +19,7 @@ const POS_WIDTHS  = [160, 60, 90, 90, 90, 70, 90];
 interface ContextMenu { x: number; y: number; position: any; }
 
 export default function Positions() {
-  const { accountHash }               = useAccountHash();
-  const { orders }                    = useLiveOrders(accountHash);
+  const { accountHash, orders, positions: livePositions, refreshOrders } = useApp();
   const [portfolio, setPortfolio]     = useState<any>(null);
   const [activeTab, setActiveTab]     = useState<'open'|'working'|'filled'|'rejected'>('open');
   const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null);
