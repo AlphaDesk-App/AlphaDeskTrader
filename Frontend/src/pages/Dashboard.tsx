@@ -1,9 +1,6 @@
-import { useMemo } from 'react';
-import { TrendingUp, BarChart2, Zap, ChevronLeft, ChevronRight, DollarSign } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { TrendingUp, BarChart2, Zap, ChevronLeft, ChevronRight } from 'lucide-react';
 import Header from '../components/Header';
-import { useAccountHash } from '../hooks/useAccountHash';
-import { useLivePositions } from '../hooks/useLivePositions';
-import { api } from '../services/api';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function isOpt(sym: string) { return /^[A-Z]+\s*\d{6}[CP]\d+$/.test(sym.trim()); }
@@ -257,16 +254,7 @@ function CalendarWidget({ trades }: { trades: any[] }) {
 
 // ── Main Dashboard ────────────────────────────────────────────────────────────
 export default function Dashboard() {
-  const { accountHash }         = useAccountHash();
-  const { positions }           = useLivePositions(accountHash);
-  const [balances, setBalances] = useState<any>(null);
-  const [orders, setOrders]     = useState<any[]>([]);
-
-  useEffect(() => {
-    if (!accountHash) return;
-    api.getPortfolio(accountHash).then(d => setBalances(d?.securitiesAccount?.currentBalances ?? null)).catch(() => {});
-    api.getOrders(accountHash).then(d => setOrders(Array.isArray(d) ? d : [])).catch(() => {});
-  }, [accountHash]);
+  const { accountHash, positions, balances, orders } = useApp();
 
   const openPnl = positions.reduce((s: number, p: any) => {
     const sym   = p.instrument?.symbol ?? '';
