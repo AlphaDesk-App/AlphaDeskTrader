@@ -38,7 +38,7 @@ function pairTrades(orders: any[]) {
         // Execution leg price is the actual fill — most accurate for options
         const getPrice = (ord: any) => {
           const execPrice = ord.orderActivityCollection?.[0]?.executionLegs?.[0]?.price;
-          return execPrice ?? ord.averagePrice || ord.price || 0;
+          return execPrice ?? (ord.averagePrice || ord.price || 0);
         };
         const bp  = getPrice(entry);
         const sp  = getPrice(o);
