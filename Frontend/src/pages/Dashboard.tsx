@@ -36,12 +36,14 @@ function pairTrades(orders: any[]) {
         const entry = q.shift();
         const qty   = Math.min(entry.filledQuantity ?? entry.quantity ?? 1, o.filledQuantity ?? o.quantity ?? 1);
         // Execution leg price is the actual fill — most accurate for options
-        const getPrice = (ord: any) => {
+        const getPrice = (ord: any): number => {
           const execPrice = ord.orderActivityCollection?.[0]?.executionLegs?.[0]?.price;
           return execPrice ?? (ord.averagePrice || ord.price || 0);
         };
         const bp  = getPrice(entry);
         const sp  = getPrice(o);
+        // Skip trades where either price is missing — prevents phantom P&L from 0-price orders
+        if (!bp || !sp) return;
         const pnl = (sp - bp) * qty * mult;
         trades.push({
           entryTime: new Date(entry.enteredTime ?? Date.now()),
@@ -187,12 +189,12 @@ function CalendarWidget({ trades }: { trades: any[] }) {
           return (
             <div key={wi} style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr) 80px', gap: 4 }}>
               {wk.map((day, di) => {
-                if (!day) return <div key={di} style={{ minHeight: 70 }} />;
+                if (!day) return <div key={di} style={{ minHeight: 85 }} />;
                 const data = byDay[day];
                 const pos  = data && data.pnl >= 0;
                 return (
                   <div key={di} style={{
-                    minHeight: 70, borderRadius: 6, padding: '6px 8px',
+                    minHeight: 85, borderRadius: 6, padding: '6px 8px',
                     background: data ? (pos ? 'var(--green-bg)' : 'var(--red-bg)') : 'var(--bg-secondary)',
                     border: `1px solid ${data ? (pos ? 'var(--green)' : 'var(--red)') : 'var(--border)'}`,
                   }}>
@@ -211,7 +213,7 @@ function CalendarWidget({ trades }: { trades: any[] }) {
 
               {/* Weekly summary */}
               <div style={{
-                minHeight: 70, borderRadius: 6, padding: '6px 8px',
+                minHeight: 85, borderRadius: 6, padding: '6px 8px',
                 background: wkTotals.count > 0 ? (wkPos ? 'var(--green-bg)' : 'var(--red-bg)') : 'var(--bg-tertiary)',
                 border: `1px solid ${wkTotals.count > 0 ? (wkPos ? 'var(--green)' : 'var(--red)') : 'var(--border)'}`,
                 display: 'flex', flexDirection: 'column', justifyContent: 'center',
@@ -261,10 +263,16 @@ export default function Dashboard() {
   // All paired closed trades using accurate execution-leg fill prices
   const trades = useMemo(() => pairTrades(orders), [orders]);
 
-  // Daily P&L: closed trades where the EXIT was today (matches Journal)
-  const dailyPnl = trades
-    .filter(t => t.exitTime.toDateString() === todayStr)
-    .reduce((s, t) => s + t.pnl, 0);
+  // Daily P&L: filter orders to today FIRST then pair — matches Journal exactly
+  // (only same-day round trips count, same as Journal's "Today" filter)
+  const dailyTrades = useMemo(() => {
+    const todayOrders = orders.filter(o => {
+      const t = o.enteredTime ?? o.closeTime;
+      return t && new Date(t).toDateString() === todayStr;
+    });
+    return pairTrades(todayOrders);
+  }, [orders, todayStr]);
+  const dailyPnl = dailyTrades.reduce((s, t) => s + t.pnl, 0);
 
   // YTD P&L: realized closed trades since Jan 1 + current open unrealized
   // This matches ThinkorSwim which includes both realized and unrealized
