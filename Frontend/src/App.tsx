@@ -8,7 +8,6 @@ import Layout from './components/Layout';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import ConnectSchwab from './pages/ConnectSchwab';
-import SchwabCallback from './pages/SchwabCallback';
 import Dashboard from './pages/Dashboard';
 import Markets from './pages/Markets';
 import Charts from './pages/Charts';
@@ -46,10 +45,9 @@ export default function App() {
           <BrowserRouter>
             <HotkeyListener />
             <Routes>
-              <Route path="/login"           element={<Login />} />
-              <Route path="/register"        element={<Register />} />
-              <Route path="/connect-schwab"  element={<ConnectSchwab />} />
-              <Route path="/schwab-callback" element={<SchwabCallback />} />
+              <Route path="/login"          element={<Login />} />
+              <Route path="/register"       element={<Register />} />
+              <Route path="/connect-schwab" element={<ConnectSchwab />} />
               <Route element={<AuthGuard />}>
                 <Route path="/" element={<Layout />}>
                   <Route index            element={<Dashboard />} />
