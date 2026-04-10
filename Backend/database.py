@@ -2,7 +2,14 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker, declarative_base
 from config import settings
 
-engine = create_async_engine(settings.database_url, echo=False)
+engine = create_async_engine(
+    settings.database_url,
+    echo=False,
+    pool_size=10,        # up from default 5
+    max_overflow=20,     # up from default 10
+    pool_pre_ping=True,  # drop stale connections after cold start
+    pool_recycle=300,    # recycle connections every 5 min
+)
 
 AsyncSessionLocal = sessionmaker(
     bind=engine,
