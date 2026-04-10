@@ -13,10 +13,10 @@ class PlaceOrderRequest(BaseModel):
     order: dict
 
 @router.get("/{account_hash}")
-async def get_orders(account_hash: str, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def get_orders(account_hash: str, days_back: int = 60, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     try:
         client = await get_schwab_client(current_user.id, db)
-        return await client.get_orders(account_hash)
+        return await client.get_orders(account_hash, days_back=days_back)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

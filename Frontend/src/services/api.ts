@@ -47,7 +47,7 @@ export const api = {
     request<any>(`/quotes/${symbol}/history?period_type=${periodType}&period=${period}&frequency_type=${frequencyType}&frequency=${frequency}&need_extended_hours=true`),
   getOptionsChain:  (symbol: string, contractType = 'ALL', strikeCount = 20) =>
     request<any>(`/quotes/${symbol}/options?contract_type=${contractType}&strike_count=${strikeCount}`),
-  getOrders:        (hash: string)          => request<any[]>(`/orders/${hash}`),
+  getOrders:        (hash: string, daysBack = 60) => request<any[]>(`/orders/${hash}?days_back=${daysBack}`),
   placeOrder:       (hash: string, order: any) =>
     request<any>('/orders/place', { method: 'POST', body: JSON.stringify({ account_hash: hash, order }) }),
   cancelOrder:      (hash: string, orderId: string) =>

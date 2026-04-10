@@ -96,7 +96,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const fetchOrders = useCallback(async (hash: string) => {
     if (!hash) return;
     try {
-      const d = await api.getOrders(hash);
+      // Fetch enough days to cover YTD (day of year + buffer, capped at 365)
+      const now = new Date();
+      const ytdDays = Math.min(Math.ceil((now.getTime() - new Date(now.getFullYear(), 0, 1).getTime()) / 86400000) + 1, 365);
+      const d = await api.getOrders(hash, ytdDays);
       setOrders(Array.isArray(d) ? d : []);
     } catch {}
   }, []);

@@ -346,21 +346,38 @@ class SchwabClient:
     def get_orders(self, account_hash: str, days_back: int = 60) -> list:
         # Fetch all orders for a given account.
         # Schwab requires fromEnteredTime and toEnteredTime parameters.
-        # Default: last 60 days. Max allowed by Schwab is 60 days per request.
+        # Max allowed by Schwab is 60 days per request — chunk into 60-day windows.
+        MAX_CHUNK = 60
         now = datetime.utcnow()
-        from_time = (now - timedelta(days=days_back)).strftime("%Y-%m-%dT%H:%M:%S.000Z")
-        to_time = now.strftime("%Y-%m-%dT%H:%M:%S.000Z")
-        response = httpx.get(
-            f"{TRADER_BASE}/accounts/{account_hash}/orders",
-            params={
-                "fromEnteredTime": from_time,
-                "toEnteredTime":   to_time,
-                "maxResults":      250,
-            },
-            headers=self._get_headers(),
-        )
-        response.raise_for_status()
-        return response.json()
+        all_orders: list = []
+        remaining = days_back
+        chunk_end = now
+        seen_ids: set = set()
+        while remaining > 0:
+            chunk_days = min(remaining, MAX_CHUNK)
+            chunk_start = chunk_end - timedelta(days=chunk_days)
+            from_time = chunk_start.strftime("%Y-%m-%dT%H:%M:%S.000Z")
+            to_time   = chunk_end.strftime("%Y-%m-%dT%H:%M:%S.000Z")
+            response = httpx.get(
+                f"{TRADER_BASE}/accounts/{account_hash}/orders",
+                params={
+                    "fromEnteredTime": from_time,
+                    "toEnteredTime":   to_time,
+                    "maxResults":      250,
+                },
+                headers=self._get_headers(),
+            )
+            response.raise_for_status()
+            chunk = response.json()
+            if isinstance(chunk, list):
+                for order in chunk:
+                    oid = order.get("orderId")
+                    if oid not in seen_ids:
+                        seen_ids.add(oid)
+                        all_orders.append(order)
+            remaining -= chunk_days
+            chunk_end = chunk_start
+        return all_orders
 
     def place_order(self, account_hash: str, order: dict) -> dict:
         # Place any order by sending an order payload to Schwab.

@@ -33,7 +33,7 @@ function calcPnl(orders: any[]): number {
       else if ((instr === 'SELL' || instr === 'SELL_TO_CLOSE' || instr === 'SELL_SHORT') && q.length > 0) {
         const entry = q.shift();
         const qty   = Math.min(entry.filledQuantity ?? 1, o.filledQuantity ?? 1);
-        total += (( o.price ?? o.averagePrice ?? 0) - (entry.price ?? entry.averagePrice ?? 0)) * qty * mult;
+        total += ((o.averagePrice || o.price || 0) - (entry.averagePrice || entry.price || 0)) * qty * mult;
       }
     });
   });
@@ -60,8 +60,8 @@ function pairTrades(orders: any[]) {
       else if ((instr === 'SELL' || instr === 'SELL_TO_CLOSE' || instr === 'SELL_SHORT') && q.length > 0) {
         const entry = q.shift();
         const qty   = Math.min(entry.filledQuantity ?? 1, o.filledQuantity ?? 1);
-        const bp    = entry.price ?? entry.averagePrice ?? 0;
-        const sp    = o.price ?? o.averagePrice ?? 0;
+        const bp    = entry.averagePrice || entry.price || 0;
+        const sp    = o.averagePrice || o.price || 0;
         const pnl   = (sp - bp) * qty * mult;
         trades.push({ entryTime: new Date(entry.enteredTime ?? Date.now()), pnl, win: pnl > 0 });
       }
@@ -272,98 +272,4 @@ export default function Dashboard() {
 
   const dailyPnl = calcPnl(orders.filter(o => {
     const t = o.closeTime ?? o.enteredTime;
-    return t && new Date(t).toDateString() === todayStr;
-  }));
-  const ytdPnl = calcPnl(orders.filter(o => {
-    const t = o.closeTime ?? o.enteredTime;
-    return t && new Date(t) >= ytdStart;
-  }));
-
-  const trades      = useMemo(() => pairTrades(orders), [orders]);
-  const liquidation = balances?.liquidationValue ?? 0;
-  const available   = balances?.cashAvailableForTrading ?? 0;
-  const buyingPower = balances?.buyingPowerNonMarginableTrade ?? balances?.dayTradingBuyingPower ?? 0;
-
-  const pnlCards = [
-    { label: 'Account Value',  value: `$${liquidation.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, color: 'var(--text-primary)', icon: <Zap size={13}/> },
-    { label: 'Cash Available', value: `$${available.toLocaleString('en-US',   { minimumFractionDigits: 2 })}`, color: 'var(--text-primary)', icon: <Zap size={13}/> },
-    { label: 'Buying Power',   value: `$${buyingPower.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, color: 'var(--text-primary)', icon: <Zap size={13}/> },
-    { label: 'Open P&L',   value: `${openPnl >= 0 ? '+' : ''}$${openPnl.toFixed(2)}`,   color: openPnl >= 0 ? 'var(--green)' : 'var(--red)',  icon: <TrendingUp size={13}/> },
-    { label: 'Daily P&L',  value: `${dailyPnl >= 0 ? '+' : ''}$${dailyPnl.toFixed(2)}`, color: dailyPnl >= 0 ? 'var(--green)' : 'var(--red)', icon: <BarChart2 size={13}/> },
-    { label: 'YTD P&L',    value: `${ytdPnl >= 0 ? '+' : ''}$${ytdPnl.toFixed(2)}`,     color: ytdPnl >= 0 ? 'var(--green)' : 'var(--red)',   icon: <Zap size={13}/> },
-  ];
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
-      <Header title="Dashboard" subtitle="Account overview" />
-      <div style={{ flex: 1, overflowY: 'auto', padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
-
-        {/* P&L cards + Market Status */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(155px, 1fr))', gap: 12 }}>
-          {pnlCards.map(({ label, value, color, icon }) => (
-            <div key={label} className="card" style={{ padding: '14px 16px' }}>
-              <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.05em', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 5 }}>
-                <span style={{ color: 'var(--accent)' }}>{icon}</span>{label}
-              </div>
-              <div style={{ fontSize: 20, fontWeight: 700, fontFamily: 'JetBrains Mono, monospace', color }}>{value}</div>
-            </div>
-          ))}
-          <MarketStatusCard />
-        </div>
-
-        {/* Open Positions */}
-        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-          <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.05em' }}>OPEN POSITIONS ({positions.length})</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <div className="live-dot" /><span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Live</span>
-            </div>
-          </div>
-          {positions.length === 0 ? (
-            <div style={{ padding: 30, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>No open positions</div>
-          ) : (
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                    {['Symbol','Qty','Avg Cost','Mark','P&L','P&L %'].map((h, i) => (
-                      <th key={h} style={{ padding: '8px 14px', textAlign: i === 0 ? 'left' : 'right', fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {positions.map((pos: any, i: number) => {
-                    const sym       = pos.instrument?.symbol ?? '';
-                    const qty       = pos.longQuantity || pos.shortQuantity || 0;
-                    const avg       = pos.averagePrice ?? 0;
-                    const mktVal    = pos.marketValue ?? 0;
-                    const mult      = isOpt(sym) ? 100 : 1;
-                    const markPrice = qty > 0 ? mktVal / (qty * mult) : 0;
-                    const pnl       = (markPrice - avg) * qty * mult;
-                    const pct       = avg > 0 ? ((markPrice - avg) / avg * 100) : 0;
-                    const pos_      = pnl >= 0;
-                    return (
-                      <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}
-                        onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-hover)')}
-                        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                        <td style={{ padding: '9px 14px', fontWeight: 700, fontFamily: 'JetBrains Mono, monospace', fontSize: 12 }}>{isOpt(sym) ? formatSym(sym) : sym}</td>
-                        <td style={{ padding: '9px 14px', textAlign: 'right', fontFamily: 'JetBrains Mono, monospace' }}>{qty}</td>
-                        <td style={{ padding: '9px 14px', textAlign: 'right', fontFamily: 'JetBrains Mono, monospace' }}>${avg.toFixed(2)}</td>
-                        <td style={{ padding: '9px 14px', textAlign: 'right', fontFamily: 'JetBrains Mono, monospace' }}>${markPrice.toFixed(2)}</td>
-                        <td style={{ padding: '9px 14px', textAlign: 'right', fontFamily: 'JetBrains Mono, monospace', fontWeight: 600, color: pos_ ? 'var(--green)' : 'var(--red)' }}>{pos_ ? '+' : ''}${pnl.toFixed(2)}</td>
-                        <td style={{ padding: '9px 14px', textAlign: 'right', fontFamily: 'JetBrains Mono, monospace', fontWeight: 600, color: pos_ ? 'var(--green)' : 'var(--red)' }}>{pos_ ? '+' : ''}{pct.toFixed(2)}%</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-
-        {/* Trading Calendar */}
-        <CalendarWidget trades={trades} />
-      </div>
-    </div>
-  );
-}
+    return t && new Date(t).toDateString(
