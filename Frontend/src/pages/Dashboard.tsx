@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { TrendingUp, BarChart2, Zap, ChevronLeft, ChevronRight } from 'lucide-react';
+import { TrendingUp, BarChart2, Zap, ChevronLeft, ChevronRight, DollarSign } from 'lucide-react';
 import Header from '../components/Header';
 import { useApp } from '../context/AppContext';
 
