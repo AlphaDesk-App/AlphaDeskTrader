@@ -285,7 +285,7 @@ export default function Dashboard() {
   const buyingPower = balances?.buyingPowerNonMarginableTrade ?? balances?.dayTradingBuyingPower ?? 0;
 
   const pnlCards = [
-    { label: 'Account Value',  value: `$${liquidation.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, color: 'var(--text-primary)', icon: <DollarSign size={13}/> },
+    { label: 'Account Value',  value: `$${liquidation.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, color: 'var(--text-primary)', icon: <Zap size={13}/> },
     { label: 'Cash Available', value: `$${available.toLocaleString('en-US',   { minimumFractionDigits: 2 })}`, color: 'var(--text-primary)', icon: <Zap size={13}/> },
     { label: 'Buying Power',   value: `$${buyingPower.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, color: 'var(--text-primary)', icon: <Zap size={13}/> },
     { label: 'Open P&L',   value: `${openPnl >= 0 ? '+' : ''}$${openPnl.toFixed(2)}`,   color: openPnl >= 0 ? 'var(--green)' : 'var(--red)',  icon: <TrendingUp size={13}/> },
