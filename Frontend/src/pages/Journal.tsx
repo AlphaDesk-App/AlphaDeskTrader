@@ -1,7 +1,8 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { BarChart2, List, Clock } from 'lucide-react';
 import Header from '../components/Header';
 import { useApp } from '../context/AppContext';
+import { api } from '../services/api';
 
 const SETUPS = [
   'Opening Range FVG Breakout Bullish',
@@ -234,9 +235,30 @@ export default function Journal() {
   const [editSetup,  setEditSetup]  = useState('');
   const [editOther,  setEditOther]  = useState('');
   const [editNotes,  setEditNotes]  = useState('');
-  const [saved, setSaved] = useState<Record<string,{setup:string;notes:string}>>(() => {
-    try { return JSON.parse(localStorage.getItem('alphaDesk_journal')?? '{}'); } catch { return {}; }
-  });
+  // Notes stored in DB — syncs across all computers
+  const [saved, setSaved] = useState<Record<string,{setup:string;notes:string}>>({});
+  const [notesLoading, setNotesLoading] = useState(true);
+
+  // Load notes from DB on mount; migrate any existing localStorage notes
+  useEffect(() => {
+    api.getJournalNotes()
+      .then(async (dbNotes) => {
+        // One-time migration: push any localStorage notes that aren't yet in DB
+        let local: Record<string,{setup:string;notes:string}> = {};
+        try { local = JSON.parse(localStorage.getItem('alphaDesk_journal') ?? '{}'); } catch {}
+        const migrations = Object.entries(local).filter(([id]) => !dbNotes[id]);
+        for (const [id, val] of migrations) {
+          await api.saveJournalNote(id, val.setup, val.notes).catch(() => {});
+        }
+        if (migrations.length) localStorage.removeItem('alphaDesk_journal');
+        setSaved({ ...local, ...dbNotes });
+      })
+      .catch(() => {
+        // Fallback to localStorage if API fails
+        try { setSaved(JSON.parse(localStorage.getItem('alphaDesk_journal') ?? '{}')); } catch {}
+      })
+      .finally(() => setNotesLoading(false));
+  }, []);
 
   // Pair trades and apply saved metadata
   const allTrades = useMemo(() =>
@@ -265,14 +287,21 @@ export default function Journal() {
     setEditNotes(t.notes || '');
   };
 
-  const saveEdit = () => {
+  const saveEdit = useCallback(async () => {
     if (!editId) return;
     const finalSetup = editSetup === 'Other' ? editOther : editSetup;
-    const updated = { ...saved, [editId]: { setup: finalSetup, notes: editNotes } };
-    setSaved(updated);
-    localStorage.setItem('alphaDesk_journal', JSON.stringify(updated));
+    // Optimistic update
+    setSaved(prev => ({ ...prev, [editId]: { setup: finalSetup, notes: editNotes } }));
     setEditId(null);
-  };
+    // Persist to DB
+    await api.saveJournalNote(editId, finalSetup, editNotes).catch(() => {
+      // If save fails, at least keep it in localStorage as backup
+      setSaved(prev => {
+        localStorage.setItem('alphaDesk_journal', JSON.stringify(prev));
+        return prev;
+      });
+    });
+  }, [editId, editSetup, editOther, editNotes]);
 
   return (
     <div style={{ display:'flex', flexDirection:'column', height:'100vh', overflow:'hidden' }}>

@@ -31,6 +31,18 @@ class SchwabToken(Base):
     updated_at    = Column(DateTime(timezone=True), onupdate=func.now())
 
 
+class JournalNote(Base):
+    __tablename__ = "journal_notes"
+
+    id         = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id    = Column(String, nullable=False, index=True)
+    trade_id   = Column(String, nullable=False, index=True)   # "{entryOrderId}-{exitOrderId}"
+    setup      = Column(String, nullable=True)
+    notes      = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+
 class UserSettings(Base):
     __tablename__ = "user_settings"
 

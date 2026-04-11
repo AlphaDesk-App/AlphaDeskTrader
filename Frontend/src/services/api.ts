@@ -53,6 +53,12 @@ export const api = {
   cancelOrder:      (hash: string, orderId: string) =>
     request<any>(`/orders/cancel/${hash}/${orderId}`, { method: 'DELETE' }),
   health:           ()                      => request<any>('/health'),
+
+  // Journal notes — persisted in DB so they sync across all computers
+  getJournalNotes:  () =>
+    request<Record<string, { setup: string; notes: string }>>('/journal/'),
+  saveJournalNote:  (tradeId: string, setup: string, notes: string) =>
+    request<any>('/journal/', { method: 'PUT', body: JSON.stringify({ trade_id: tradeId, setup, notes }) }),
 };
 
 export function createQuoteSocket(symbol: string, onMessage: (data: any) => void): WebSocket {
