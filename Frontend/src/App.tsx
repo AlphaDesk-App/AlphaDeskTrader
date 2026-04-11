@@ -20,6 +20,20 @@ const HOTKEY_ROUTES: Record<string, string> = {
   '4': '/positions', '5': '/journal',
 };
 
+function SpaRedirectHandler() {
+  const navigate = useNavigate();
+  useEffect(() => {
+    const path = sessionStorage.getItem('__spa_path');
+    if (path) {
+      sessionStorage.removeItem('__spa_path');
+      navigate(path, { replace: true });
+    }
+  // Only run once on mount
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return null;
+}
+
 function HotkeyListener() {
   const navigate = useNavigate();
   useEffect(() => {
@@ -43,6 +57,7 @@ export default function App() {
       <AuthProvider>
         <AppProvider>
           <BrowserRouter>
+            <SpaRedirectHandler />
             <HotkeyListener />
             <Routes>
               <Route path="/login"          element={<Login />} />
