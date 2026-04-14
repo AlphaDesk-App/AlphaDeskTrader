@@ -1,14 +1,79 @@
+import asyncio
+import base64
+import time
+import logging
+import httpx
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import select
 from config import settings
 from routers import accounts, orders, quotes, ws, auth, journal
-from database import init_db
+from database import init_db, AsyncSessionLocal
+from models import SchwabToken
+
+logger = logging.getLogger(__name__)
+
+TOKEN_URL = "https://api.schwabapi.com/v1/oauth/token"
+REFRESH_INTERVAL = 6 * 24 * 60 * 60   # 6 days in seconds
+STARTUP_DELAY    = 5 * 60              # wait 5 min after boot before first sweep
+
+
+async def _refresh_token(token: SchwabToken) -> bool:
+    """Exchange one refresh token for a new access + refresh token. Returns True on success."""
+    creds = base64.b64encode(
+        f"{settings.schwab_app_key}:{settings.schwab_app_secret}".encode()
+    ).decode()
+    try:
+        res = httpx.post(
+            TOKEN_URL,
+            headers={
+                "Authorization": f"Basic {creds}",
+                "Content-Type": "application/x-www-form-urlencoded",
+            },
+            data={"grant_type": "refresh_token", "refresh_token": token.refresh_token},
+            timeout=15,
+        )
+        if res.status_code != 200:
+            logger.warning("Schwab token refresh failed for user %s: %s", token.user_id, res.text)
+            return False
+        data = res.json()
+        async with AsyncSessionLocal() as db:
+            result = await db.execute(select(SchwabToken).where(SchwabToken.id == token.id))
+            t = result.scalar_one_or_none()
+            if t:
+                t.access_token  = data["access_token"]
+                t.expiry        = int(time.time()) + data.get("expires_in", 1800)
+                if "refresh_token" in data:
+                    t.refresh_token = data["refresh_token"]
+                await db.commit()
+        logger.info("Schwab token refreshed for user %s", token.user_id)
+        return True
+    except Exception as e:
+        logger.error("Token refresh error for user %s: %s", token.user_id, e)
+        return False
+
+
+async def token_refresh_loop():
+    """Background task: refresh all Schwab tokens on startup and every 6 days."""
+    await asyncio.sleep(STARTUP_DELAY)   # let the server fully boot first
+    while True:
+        try:
+            async with AsyncSessionLocal() as db:
+                result = await db.execute(select(SchwabToken))
+                tokens = result.scalars().all()
+            logger.info("Running scheduled Schwab token refresh for %d user(s)", len(tokens))
+            for token in tokens:
+                await _refresh_token(token)
+        except Exception as e:
+            logger.error("Token refresh loop error: %s", e)
+        await asyncio.sleep(REFRESH_INTERVAL)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
+    asyncio.create_task(token_refresh_loop())
     yield
 
 
