@@ -4,6 +4,9 @@ import time
 import logging
 import httpx
 from contextlib import asynccontextmanager
+
+# Shared async client for token refresh background task
+_async_client = httpx.AsyncClient(timeout=15.0)
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
@@ -25,14 +28,13 @@ async def _refresh_token(token: SchwabToken) -> bool:
         f"{settings.schwab_app_key}:{settings.schwab_app_secret}".encode()
     ).decode()
     try:
-        res = httpx.post(
+        res = await _async_client.post(
             TOKEN_URL,
             headers={
                 "Authorization": f"Basic {creds}",
                 "Content-Type": "application/x-www-form-urlencoded",
             },
             data={"grant_type": "refresh_token", "refresh_token": token.refresh_token},
-            timeout=15,
         )
         if res.status_code != 200:
             logger.warning("Schwab token refresh failed for user %s: %s", token.user_id, res.text)

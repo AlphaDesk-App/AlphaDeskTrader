@@ -12,6 +12,9 @@ TRADER_BASE = "https://api.schwabapi.com/trader/v1"
 MARKET_BASE = "https://api.schwabapi.com/marketdata/v1"
 TOKEN_URL   = "https://api.schwabapi.com/v1/oauth/token"
 
+# Shared async client — reused across requests for connection pooling
+_async_client = httpx.AsyncClient(timeout=30.0)
+
 
 class SchwabClientDB:
     def __init__(self, access_token, refresh_token, expiry, user_id, db=None):
@@ -29,7 +32,7 @@ class SchwabClientDB:
         creds = base64.b64encode(
             f"{settings.schwab_app_key}:{settings.schwab_app_secret}".encode()
         ).decode()
-        res = httpx.post(
+        res = await _async_client.post(
             TOKEN_URL,
             headers={"Authorization": f"Basic {creds}", "Content-Type": "application/x-www-form-urlencoded"},
             data={"grant_type": "refresh_token", "refresh_token": self.refresh_token},
@@ -58,17 +61,17 @@ class SchwabClientDB:
         return {"Authorization": f"Bearer {self.access_token}"}
 
     async def get_account_numbers(self):
-        r = httpx.get(f"{TRADER_BASE}/accounts/accountNumbers", headers=await self._headers())
+        r = await _async_client.get(f"{TRADER_BASE}/accounts/accountNumbers", headers=await self._headers())
         r.raise_for_status()
         return r.json()
 
     async def get_accounts(self):
-        r = httpx.get(f"{TRADER_BASE}/accounts", headers=await self._headers())
+        r = await _async_client.get(f"{TRADER_BASE}/accounts", headers=await self._headers())
         r.raise_for_status()
         return r.json()
 
     async def get_portfolio(self, account_hash):
-        r = httpx.get(
+        r = await _async_client.get(
             f"{TRADER_BASE}/accounts/{account_hash}",
             params={"fields": "positions"},
             headers=await self._headers(),
@@ -77,12 +80,12 @@ class SchwabClientDB:
         return r.json()
 
     async def get_quote(self, symbol):
-        r = httpx.get(f"{MARKET_BASE}/quotes", params={"symbols": symbol}, headers=await self._headers())
+        r = await _async_client.get(f"{MARKET_BASE}/quotes", params={"symbols": symbol}, headers=await self._headers())
         r.raise_for_status()
         return r.json()
 
     async def get_quotes(self, symbols):
-        r = httpx.get(
+        r = await _async_client.get(
             f"{MARKET_BASE}/quotes",
             params={"symbols": ",".join(symbols)},
             headers=await self._headers(),
@@ -91,7 +94,7 @@ class SchwabClientDB:
         return r.json()
 
     async def get_price_history(self, symbol, period_type, period, frequency_type, frequency, need_extended=True):
-        r = httpx.get(
+        r = await _async_client.get(
             f"{MARKET_BASE}/pricehistory",
             params={
                 "symbol": symbol,
@@ -107,7 +110,7 @@ class SchwabClientDB:
         return r.json()
 
     async def get_options_chain(self, symbol, contract_type="ALL", strike_count=20):
-        r = httpx.get(
+        r = await _async_client.get(
             f"{MARKET_BASE}/chains",
             params={
                 "symbol": symbol,
@@ -137,7 +140,7 @@ class SchwabClientDB:
             chunk_days = min(remaining, MAX_CHUNK)
             start_dt   = end_dt - timedelta(days=chunk_days)
 
-            r = httpx.get(
+            r = await _async_client.get(
                 f"{TRADER_BASE}/accounts/{account_hash}/orders",
                 params={
                     "fromEnteredTime": start_dt.strftime("%Y-%m-%dT%H:%M:%S.000Z"),
@@ -145,7 +148,6 @@ class SchwabClientDB:
                     "maxResults": 250,
                 },
                 headers=headers,
-                timeout=30,
             )
             if not r.is_success:
                 # Propagate Schwab's error body
@@ -168,7 +170,7 @@ class SchwabClientDB:
         return all_orders
 
     async def place_order(self, account_hash, order):
-        r = httpx.post(
+        r = await _async_client.post(
             f"{TRADER_BASE}/accounts/{account_hash}/orders",
             headers={**await self._headers(), "Content-Type": "application/json"},
             json=order,
@@ -183,7 +185,7 @@ class SchwabClientDB:
         return {"order_id": location.split("/")[-1] if location else None, "status": "placed"}
 
     async def cancel_order(self, account_hash, order_id):
-        r = httpx.delete(
+        r = await _async_client.delete(
             f"{TRADER_BASE}/accounts/{account_hash}/orders/{order_id}",
             headers=await self._headers(),
         )

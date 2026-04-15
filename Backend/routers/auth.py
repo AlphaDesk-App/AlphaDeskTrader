@@ -2,6 +2,9 @@
 import base64
 import httpx
 import time
+
+# Shared async client for OAuth token exchange
+_async_client = httpx.AsyncClient(timeout=15.0)
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -104,7 +107,7 @@ async def schwab_connect(current_user: User = Depends(get_current_user)):
 async def schwab_callback(code: str, state: str, db: AsyncSession = Depends(get_db)):
     creds = base64.b64encode(f"{settings.schwab_app_key}:{settings.schwab_app_secret}".encode()).decode()
 
-    response = httpx.post(
+    response = await _async_client.post(
         TOKEN_URL,
         headers={"Authorization": f"Basic {creds}", "Content-Type": "application/x-www-form-urlencoded"},
         data={"grant_type": "authorization_code", "code": code, "redirect_uri": settings.schwab_redirect_uri},
