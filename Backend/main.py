@@ -4,16 +4,22 @@ import time
 import logging
 import httpx
 from contextlib import asynccontextmanager
-
-# Shared async client for token refresh background task
-_async_client = httpx.AsyncClient(timeout=15.0)
+from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from sqlalchemy import select
 from config import settings
 from routers import accounts, orders, quotes, ws, auth, journal
 from database import init_db, AsyncSessionLocal
 from models import SchwabToken
+
+# Shared async client for token refresh background task
+_async_client = httpx.AsyncClient(timeout=15.0)
+
+# Path to the built frontend — Backend/../Frontend/dist
+DIST_DIR = Path(__file__).parent.parent / "Frontend" / "dist"
 
 logger = logging.getLogger(__name__)
 
@@ -106,3 +112,18 @@ app.include_router(journal.router,  prefix="/journal",  tags=["journal"])
 @app.get("/health")
 async def health():
     return {"status": "ok", "version": "2.0.0"}
+
+
+# ── Serve frontend static files ───────────────────────────────────────────────
+# Mount the compiled assets directory so JS/CSS bundles load correctly,
+# then catch every other path and return index.html so React Router works.
+if DIST_DIR.exists():
+    assets_dir = DIST_DIR / "assets"
+    if assets_dir.exists():
+        app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="assets")
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def serve_spa(full_path: str):
+        """Return index.html for all non-API routes so React Router handles them."""
+        index = DIST_DIR / "index.html"
+        return FileResponse(str(index))
