@@ -15,30 +15,63 @@ TOKEN_URL   = "https://api.schwabapi.com/v1/oauth/token"
 # Shared async client — reused across requests for connection pooling
 _async_client = httpx.AsyncClient(timeout=30.0)
 
+# Per-user refresh locks — prevents concurrent requests from racing to refresh
+# the same token simultaneously (second refresh would get 400 since Schwab
+# invalidates the old refresh token as soon as a new one is issued).
+import asyncio
+_refresh_locks: dict[str, asyncio.Lock] = {}
+
+def _get_refresh_lock(user_id: str) -> asyncio.Lock:
+    if user_id not in _refresh_locks:
+        _refresh_locks[user_id] = asyncio.Lock()
+    return _refresh_locks[user_id]
+
 
 class SchwabClientDB:
     def __init__(self, access_token, refresh_token, expiry, user_id, db=None):
         self.access_token  = access_token
         self.refresh_token = refresh_token
-        self.expiry        = expiry
+        self.expiry        = expiry or 0   # treat None as epoch 0 (always expired)
         self.user_id       = user_id
         # db is optional — kept for backward compat but _refresh opens its own session
         self._db           = db
 
     def _is_valid(self):
-        return time.time() < self.expiry - 60
+        try:
+            return time.time() < self.expiry - 60
+        except TypeError:
+            return False
 
     async def _refresh(self):
-        creds = base64.b64encode(
-            f"{settings.schwab_app_key}:{settings.schwab_app_secret}".encode()
-        ).decode()
-        res = await _async_client.post(
-            TOKEN_URL,
-            headers={"Authorization": f"Basic {creds}", "Content-Type": "application/x-www-form-urlencoded"},
-            data={"grant_type": "refresh_token", "refresh_token": self.refresh_token},
-        )
-        res.raise_for_status()
-        data = res.json()
+        """Refresh the access token. Uses a per-user lock so concurrent requests
+        don't race — only one refresh happens; the rest wait and reuse the result."""
+        lock = _get_refresh_lock(self.user_id)
+        async with lock:
+            # Re-check validity inside the lock — a concurrent waiter may have
+            # already refreshed by the time we acquire it.
+            if self._is_valid():
+                return
+
+            creds = base64.b64encode(
+                f"{settings.schwab_app_key}:{settings.schwab_app_secret}".encode()
+            ).decode()
+            res = await _async_client.post(
+                TOKEN_URL,
+                headers={"Authorization": f"Basic {creds}", "Content-Type": "application/x-www-form-urlencoded"},
+                data={"grant_type": "refresh_token", "refresh_token": self.refresh_token},
+            )
+            if not res.is_success:
+                # Surface Schwab's actual error body so we can debug it
+                try:
+                    detail = res.json()
+                except Exception:
+                    detail = res.text
+                raise Exception(
+                    f"Schwab token refresh failed ({res.status_code}): {detail}\n"
+                    f"This usually means the refresh token has expired. "
+                    f"Please reconnect your Schwab account."
+                )
+            data = res.json()
         self.access_token = data["access_token"]
         self.expiry       = int(time.time()) + data.get("expires_in", 1800)
         if "refresh_token" in data:
@@ -58,6 +91,16 @@ class SchwabClientDB:
     async def _headers(self):
         if not self._is_valid():
             await self._refresh()
+            # After refresh, reload the latest token values from DB in case
+            # another concurrent request did the actual refresh while we waited.
+            from database import AsyncSessionLocal
+            async with AsyncSessionLocal() as db:
+                result = await db.execute(select(SchwabToken).where(SchwabToken.user_id == self.user_id))
+                token = result.scalar_one_or_none()
+                if token:
+                    self.access_token  = token.access_token
+                    self.refresh_token = token.refresh_token
+                    self.expiry        = token.expiry or 0
         return {"Authorization": f"Bearer {self.access_token}"}
 
     async def get_account_numbers(self):

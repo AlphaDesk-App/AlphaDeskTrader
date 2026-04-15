@@ -139,6 +139,28 @@ async def schwab_callback(code: str, state: str, db: AsyncSession = Depends(get_
     return {"status": "connected", "message": "Schwab account connected successfully"}
 
 
+@router.get("/schwab/status")
+async def schwab_status(current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    """Debug endpoint — shows token state without making a Schwab API call."""
+    import time
+    result = await db.execute(select(SchwabToken).where(SchwabToken.user_id == current_user.id))
+    token = result.scalar_one_or_none()
+    if not token:
+        return {"connected": False, "reason": "No token record found"}
+    now = int(time.time())
+    expiry = token.expiry or 0
+    return {
+        "connected":        True,
+        "has_access_token": bool(token.access_token),
+        "has_refresh_token": bool(token.refresh_token),
+        "expiry":           expiry,
+        "now":              now,
+        "seconds_until_expiry": expiry - now,
+        "token_valid":      now < expiry - 60,
+        "refresh_token_prefix": (token.refresh_token or "")[:20] + "...",
+    }
+
+
 @router.delete("/schwab/disconnect")
 async def schwab_disconnect(current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(SchwabToken).where(SchwabToken.user_id == current_user.id))
