@@ -55,7 +55,20 @@ function getDateRange(filter: DateFilter, customFrom: string, customTo: string):
   }
 }
 
-// FIFO trade pairing — only returns trades with both entry AND confirmed exit
+// Use fill price from execution legs if available (most accurate), else averagePrice/price.
+function getPrice(o: any): number {
+  const execPrice = o.orderActivityCollection?.[0]?.executionLegs?.[0]?.price;
+  return execPrice ?? o.averagePrice ?? o.price ?? 0;
+}
+
+// FIFO partial-fill trade pairing.
+//
+// Correctly handles scale-out trades (e.g. buy 2, sell 1 at TP1, sell 1 at TP2):
+//   - Each entry order tracks its remaining unfilled quantity separately.
+//   - A partial exit consumes only what it needs from the front of the queue;
+//     the entry stays in the queue with reduced remaining qty until fully consumed.
+//   - This means buy-2 / sell-1 / sell-1 produces TWO complete trade records,
+//     rather than one trade + one orphaned exit (the old bug).
 function pairTrades(orders: any[]): any[] {
   const filled = orders
     .filter(o => o.status === 'FILLED' && o.orderLegCollection?.[0])
@@ -72,49 +85,60 @@ function pairTrades(orders: any[]): any[] {
 
   const trades: any[] = [];
 
-  Object.entries(bySymbol).forEach(([sym, orders]) => {
-    const opt  = isOption(sym.trim());
-    const buyQueue: any[] = [];
+  Object.entries(bySymbol).forEach(([sym, symOrders]) => {
+    const opt        = isOption(sym.trim());
+    const multiplier = opt ? 100 : 1;
 
-    orders.forEach(order => {
+    // Queue entries, each carrying its remaining unfilled quantity
+    const posQueue: Array<{ order: any; remaining: number }> = [];
+
+    symOrders.forEach(order => {
       const leg         = order.orderLegCollection[0];
       const instruction = (leg.instruction ?? '').toUpperCase();
-      // Strict matching — only exact entry/exit instructions
-      const isEntry = instruction === 'BUY' || instruction === 'BUY_TO_OPEN';
-      const isExit  = instruction === 'SELL' || instruction === 'SELL_TO_CLOSE' || instruction === 'SELL_SHORT';
+      const isEntry     = instruction === 'BUY'  || instruction === 'BUY_TO_OPEN';
+      const isExit      = instruction === 'SELL' || instruction === 'SELL_TO_CLOSE' || instruction === 'SELL_SHORT';
+      const orderQty    = order.filledQuantity ?? order.quantity ?? 1;
 
       if (isEntry) {
-        buyQueue.push(order);
-      } else if (isExit && buyQueue.length > 0) {
-        const entry     = buyQueue.shift();
-        const qty       = Math.min(entry.filledQuantity ?? entry.quantity ?? 1, order.filledQuantity ?? order.quantity ?? 1);
-        // Use fill price from execution legs if available (more accurate for options)
-        const getPrice = (o: any) => {
-          const execPrice = o.orderActivityCollection?.[0]?.executionLegs?.[0]?.price;
-          return execPrice ?? o.price ?? o.averagePrice ?? 0;
-        };
-        const entryPrice = getPrice(entry);
-        const exitPrice  = getPrice(order);
-        const multiplier = opt ? 100 : 1;
-        const pnl        = (exitPrice - entryPrice) * qty * multiplier;
+        posQueue.push({ order, remaining: orderQty });
+      } else if (isExit) {
+        // One exit order may partially or fully close one or more entries (FIFO)
+        let exitRemaining = orderQty;
 
-        trades.push({
-          id:         `${entry.orderId}-${order.orderId}`,
-          symbol:     sym,
-          qty,
-          entryPrice,
-          exitPrice,
-          pnl,
-          entryTime:  new Date(entry.enteredTime ?? entry.closeTime ?? Date.now()),
-          exitTime:   new Date(order.enteredTime ?? order.closeTime ?? Date.now()),
-          win:        pnl > 0,
-          isOption:   opt,
-          setup:      '',
-          notes:      '',
-        });
+        while (exitRemaining > 0 && posQueue.length > 0) {
+          const pos      = posQueue[0];
+          const matchQty = Math.min(pos.remaining, exitRemaining);
+
+          const entryPrice = getPrice(pos.order);
+          const exitPrice  = getPrice(order);
+
+          // Skip phantom trades where both prices are zero
+          if (entryPrice !== 0 || exitPrice !== 0) {
+            const pnl = (exitPrice - entryPrice) * matchQty * multiplier;
+            trades.push({
+              id:         `${pos.order.orderId}-${order.orderId}`,
+              symbol:     sym,
+              qty:        matchQty,
+              entryPrice,
+              exitPrice,
+              pnl,
+              entryTime:  new Date(pos.order.enteredTime ?? pos.order.closeTime ?? Date.now()),
+              exitTime:   new Date(order.enteredTime     ?? order.closeTime      ?? Date.now()),
+              win:        pnl > 0,
+              isOption:   opt,
+              setup:      '',
+              notes:      '',
+            });
+          }
+
+          pos.remaining -= matchQty;
+          exitRemaining -= matchQty;
+
+          if (pos.remaining === 0) posQueue.shift(); // entry fully consumed
+        }
       }
     });
-    // orphaned entries (no exit) are discarded — not added to trades
+    // Remaining entries with no matching exit are open positions — not logged as trades
   });
 
   return trades.sort((a, b) => b.entryTime.getTime() - a.entryTime.getTime());

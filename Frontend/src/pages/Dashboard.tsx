@@ -15,6 +15,14 @@ function formatSym(sym: string) {
 
 // Uses execution leg fill price first (most accurate), then falls back to averagePrice/price.
 // Matches the Journal's logic so Daily P&L and Calendar are consistent with Journal.
+//
+// Uses FIFO partial-fill matching so scale-out trades (buy 2, sell 1, sell 1)
+// produce two trade records instead of one matched + one orphaned exit.
+function getPrice(ord: any): number {
+  const execPrice = ord.orderActivityCollection?.[0]?.executionLegs?.[0]?.price;
+  return execPrice ?? ord.averagePrice ?? ord.price ?? 0;
+}
+
 function pairTrades(orders: any[]) {
   const filled = orders
     .filter(o => o.status === 'FILLED' && o.orderLegCollection?.[0])
@@ -28,29 +36,36 @@ function pairTrades(orders: any[]) {
   const trades: any[] = [];
   Object.entries(bySymbol).forEach(([sym, ords]) => {
     const mult = isOpt(sym) ? 100 : 1;
-    const q: any[] = [];
+    // Track each entry with its remaining unfilled quantity
+    const posQueue: Array<{ order: any; remaining: number }> = [];
     ords.forEach(o => {
-      const instr = (o.orderLegCollection[0].instruction ?? '').toUpperCase();
-      if (instr === 'BUY' || instr === 'BUY_TO_OPEN') { q.push(o); }
-      else if ((instr === 'SELL' || instr === 'SELL_TO_CLOSE' || instr === 'SELL_SHORT') && q.length > 0) {
-        const entry = q.shift();
-        const qty   = Math.min(entry.filledQuantity ?? entry.quantity ?? 1, o.filledQuantity ?? o.quantity ?? 1);
-        // Execution leg price is the actual fill — most accurate for options
-        const getPrice = (ord: any): number => {
-          const execPrice = ord.orderActivityCollection?.[0]?.executionLegs?.[0]?.price;
-          return execPrice ?? (ord.averagePrice || ord.price || 0);
-        };
-        const bp  = getPrice(entry);
-        const sp  = getPrice(o);
-        // Skip only when BOTH prices are zero — prevents phantom P&L from unexecuted/cancelled orders
-        if (bp === 0 && sp === 0) return;
-        const pnl = (sp - bp) * qty * mult;
-        trades.push({
-          entryTime: new Date(entry.enteredTime ?? Date.now()),
-          exitTime:  new Date(o.enteredTime ?? Date.now()),
-          pnl,
-          win: pnl > 0,
-        });
+      const instr    = (o.orderLegCollection[0].instruction ?? '').toUpperCase();
+      const isEntry  = instr === 'BUY' || instr === 'BUY_TO_OPEN';
+      const isExit   = instr === 'SELL' || instr === 'SELL_TO_CLOSE' || instr === 'SELL_SHORT';
+      const orderQty = o.filledQuantity ?? o.quantity ?? 1;
+
+      if (isEntry) {
+        posQueue.push({ order: o, remaining: orderQty });
+      } else if (isExit) {
+        let exitRemaining = orderQty;
+        while (exitRemaining > 0 && posQueue.length > 0) {
+          const pos      = posQueue[0];
+          const matchQty = Math.min(pos.remaining, exitRemaining);
+          const bp       = getPrice(pos.order);
+          const sp       = getPrice(o);
+          if (bp !== 0 || sp !== 0) {
+            const pnl = (sp - bp) * matchQty * mult;
+            trades.push({
+              entryTime: new Date(pos.order.enteredTime ?? Date.now()),
+              exitTime:  new Date(o.enteredTime ?? Date.now()),
+              pnl,
+              win: pnl > 0,
+            });
+          }
+          pos.remaining -= matchQty;
+          exitRemaining -= matchQty;
+          if (pos.remaining === 0) posQueue.shift();
+        }
       }
     });
   });
