@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { TrendingUp, BarChart2, Zap, ChevronLeft, ChevronRight, DollarSign } from 'lucide-react';
+import { TrendingUp, BarChart2, Zap, ChevronLeft, ChevronRight, DollarSign, Percent, Landmark } from 'lucide-react';
 import Header from '../components/Header';
 import { useApp } from '../context/AppContext';
 
@@ -296,17 +296,28 @@ export default function Dashboard() {
     .reduce((s, t) => s + t.pnl, 0);
   const ytdPnl = realizedYtd + openPnl;
 
-  const liquidation = balances?.liquidationValue ?? 0;
-  const available   = balances?.cashAvailableForTrading ?? 0;
-  const buyingPower = balances?.buyingPowerNonMarginableTrade ?? balances?.dayTradingBuyingPower ?? 0;
+  const liquidation  = balances?.liquidationValue ?? 0;
+  const available    = balances?.cashAvailableForTrading ?? 0;
+  const buyingPower  = balances?.buyingPowerNonMarginableTrade ?? balances?.dayTradingBuyingPower ?? 0;
+  const settledCash  = balances?.settledCash ?? balances?.cashBalance ?? 0;
+
+  // Daily P&L % relative to start-of-day account value (today's value minus today's P&L)
+  const sodValue    = liquidation - dailyPnl;
+  const dailyPnlPct = sodValue > 0 ? (dailyPnl / sodValue) * 100 : 0;
+
+  const fmt$ = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 2 });
+  const fmtPnl = (n: number) => `${n >= 0 ? '+' : ''}$${n.toFixed(2)}`;
+  const fmtPct = (n: number) => `${n >= 0 ? '+' : ''}${n.toFixed(2)}%`;
 
   const pnlCards = [
-    { label: 'Account Value',  value: `$${liquidation.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, color: 'var(--text-primary)', icon: <DollarSign size={13}/> },
-    { label: 'Cash Available', value: `$${available.toLocaleString('en-US',   { minimumFractionDigits: 2 })}`, color: 'var(--text-primary)', icon: <Zap size={13}/> },
-    { label: 'Buying Power',   value: `$${buyingPower.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, color: 'var(--text-primary)', icon: <Zap size={13}/> },
-    { label: 'Open P&L',   value: `${openPnl >= 0 ? '+' : ''}$${openPnl.toFixed(2)}`,   color: openPnl >= 0 ? 'var(--green)' : 'var(--red)',  icon: <TrendingUp size={13}/> },
-    { label: 'Daily P&L',  value: `${dailyPnl >= 0 ? '+' : ''}$${dailyPnl.toFixed(2)}`, color: dailyPnl >= 0 ? 'var(--green)' : 'var(--red)', icon: <BarChart2 size={13}/> },
-    { label: 'YTD P&L',    value: `${ytdPnl >= 0 ? '+' : ''}$${ytdPnl.toFixed(2)}`,     color: ytdPnl >= 0 ? 'var(--green)' : 'var(--red)',   icon: <Zap size={13}/> },
+    { label: 'Account Value',  value: `$${fmt$(liquidation)}`,  color: 'var(--text-primary)',                                    icon: <DollarSign size={13}/> },
+    { label: 'Cash Available', value: `$${fmt$(available)}`,    color: 'var(--text-primary)',                                    icon: <Zap size={13}/> },
+    { label: 'Buying Power',   value: `$${fmt$(buyingPower)}`,  color: 'var(--text-primary)',                                    icon: <Zap size={13}/> },
+    { label: 'Settled Cash',   value: `$${fmt$(settledCash)}`,  color: 'var(--text-primary)',                                    icon: <Landmark size={13}/> },
+    { label: 'Open P&L',       value: fmtPnl(openPnl),         color: openPnl  >= 0 ? 'var(--green)' : 'var(--red)',            icon: <TrendingUp size={13}/> },
+    { label: 'Daily P&L',      value: fmtPnl(dailyPnl),        color: dailyPnl >= 0 ? 'var(--green)' : 'var(--red)',            icon: <BarChart2 size={13}/> },
+    { label: 'Daily P&L %',    value: fmtPct(dailyPnlPct),     color: dailyPnlPct >= 0 ? 'var(--green)' : 'var(--red)',         icon: <Percent size={13}/> },
+    { label: 'YTD P&L',        value: fmtPnl(ytdPnl),          color: ytdPnl   >= 0 ? 'var(--green)' : 'var(--red)',            icon: <Zap size={13}/> },
   ];
 
   return (
