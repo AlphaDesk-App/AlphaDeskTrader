@@ -538,23 +538,27 @@ export default function Dashboard() {
     { label: 'YTD P&L %',      value: fmtPct(ytdPnlPct),      color: ytdPnlPct   >= 0 ? 'var(--green)' : 'var(--red)',   icon: <Percent size={13} /> },
   ];
 
+  const headerCards = (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 10 }}>
+      {pnlCards.map(({ label, value, color, icon }) => (
+        <div key={label} style={{
+          background: 'var(--bg-secondary)', border: '1px solid var(--border)',
+          borderRadius: 8, padding: '8px 14px',
+        }}>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.05em', marginBottom: 5, display: 'flex', alignItems: 'center', gap: 5 }}>
+            <span style={{ color: 'var(--accent)' }}>{icon}</span>{label}
+          </div>
+          <div style={{ fontSize: 18, fontWeight: 700, fontFamily: 'JetBrains Mono, monospace', color }}>{value}</div>
+        </div>
+      ))}
+    </div>
+  );
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
-      <Header title="Dashboard" subtitle="Account overview" />
+      <Header title="Dashboard" subtitle="Account overview">{headerCards}</Header>
       <div style={{ flex: 1, overflowY: 'auto', padding: 20 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-
-        {/* ── P&L Summary Cards ─────────────────────────────────────────────── */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 14 }}>
-          {pnlCards.map(({ label, value, color, icon }) => (
-            <div key={label} className="card" style={{ padding: '18px 22px' }}>
-              <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.05em', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ color: 'var(--accent)' }}>{icon}</span>{label}
-              </div>
-              <div style={{ fontSize: 24, fontWeight: 700, fontFamily: 'JetBrains Mono, monospace', color }}>{value}</div>
-            </div>
-          ))}
-        </div>
 
         {/* ── Positions / Working Orders (top) ───────────────────────────────── */}
         <div style={{ padding: 0, overflow: 'hidden', minHeight: 60, background: 'var(--bg-card)', border: '1px solid #3a3a5c', borderRadius: 10, position: 'relative', zIndex: 1 }}>
