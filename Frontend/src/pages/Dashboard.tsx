@@ -319,20 +319,20 @@ function PnlBySymbol({ trades }: { trades: any[] }) {
 
   return (
     <div className="card" style={{ padding: 20 }}>
-      <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.05em', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
-        <BarChart2 size={13} /> P&amp;L BY SYMBOL
+      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.05em', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 6 }}>
+        <BarChart2 size={14} /> P&amp;L BY SYMBOL
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {symPnl.map(([sym, pnl]) => {
           const pct = Math.abs(pnl) / maxAbs * 100;
           const pos = pnl >= 0;
           return (
-            <div key={sym} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{ width: 52, fontFamily: 'JetBrains Mono, monospace', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>{sym}</div>
-              <div style={{ flex: 1, height: 18, borderRadius: 4, background: 'var(--bg-secondary)', overflow: 'hidden' }}>
+            <div key={sym} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ width: 60, fontFamily: 'JetBrains Mono, monospace', fontSize: 13, fontWeight: 700, flexShrink: 0 }}>{sym}</div>
+              <div style={{ flex: 1, height: 22, borderRadius: 4, background: 'var(--bg-secondary)', overflow: 'hidden' }}>
                 <div style={{ width: `${pct}%`, height: '100%', background: pos ? 'var(--green)' : 'var(--red)', borderRadius: 4, opacity: 0.75 }} />
               </div>
-              <div style={{ width: 72, fontFamily: 'JetBrains Mono, monospace', fontSize: 12, fontWeight: 700, color: pos ? 'var(--green)' : 'var(--red)', textAlign: 'right', flexShrink: 0 }}>
+              <div style={{ width: 80, fontFamily: 'JetBrains Mono, monospace', fontSize: 13, fontWeight: 700, color: pos ? 'var(--green)' : 'var(--red)', textAlign: 'right', flexShrink: 0 }}>
                 {pos ? '+' : ''}${pnl.toFixed(0)}
               </div>
             </div>
@@ -360,23 +360,23 @@ function PnlBySetup({ trades, notes }: { trades: any[]; notes: Record<string, { 
 
   return (
     <div className="card" style={{ padding: 20 }}>
-      <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.05em', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
-        <Zap size={13} /> P&amp;L BY SETUP
+      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.05em', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 6 }}>
+        <Zap size={14} /> P&amp;L BY SETUP
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {setupPnl.map(([setup, { pnl, count, wins }]) => {
           const pct = Math.abs(pnl) / maxAbs * 100;
           const pos = pnl >= 0;
           const wr  = Math.round(wins / count * 100);
           return (
-            <div key={setup} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{ width: 180, fontSize: 12, fontWeight: 500, flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={setup}>{setup}</div>
-              <div style={{ flex: 1, height: 18, borderRadius: 4, background: 'var(--bg-secondary)', overflow: 'hidden' }}>
+            <div key={setup} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ width: 200, fontSize: 13, fontWeight: 500, flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={setup}>{setup}</div>
+              <div style={{ flex: 1, height: 22, borderRadius: 4, background: 'var(--bg-secondary)', overflow: 'hidden' }}>
                 <div style={{ width: `${pct}%`, height: '100%', background: pos ? 'var(--green)' : 'var(--red)', borderRadius: 4, opacity: 0.75 }} />
               </div>
-              <div style={{ display: 'flex', gap: 12, flexShrink: 0, alignItems: 'center' }}>
-                <span style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace' }}>{count}T · {wr}%WR</span>
-                <div style={{ width: 72, fontFamily: 'JetBrains Mono, monospace', fontSize: 12, fontWeight: 700, color: pos ? 'var(--green)' : 'var(--red)', textAlign: 'right' }}>
+              <div style={{ display: 'flex', gap: 14, flexShrink: 0, alignItems: 'center' }}>
+                <span style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'JetBrains Mono, monospace' }}>{count}T · {wr}%WR</span>
+                <div style={{ width: 80, fontFamily: 'JetBrains Mono, monospace', fontSize: 13, fontWeight: 700, color: pos ? 'var(--green)' : 'var(--red)', textAlign: 'right' }}>
                   {pos ? '+' : ''}${pnl.toFixed(0)}
                 </div>
               </div>
@@ -411,26 +411,26 @@ function PnlByTimeOfDay({ trades }: { trades: any[] }) {
 
   return (
     <div className="card" style={{ padding: 20 }}>
-      <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.05em', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 6 }}>
-        <Clock size={13} /> P&amp;L BY TIME OF DAY (ET)
+      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.05em', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 6 }}>
+        <Clock size={14} /> P&amp;L BY TIME OF DAY (ET)
       </div>
-      <div style={{ display: 'flex', gap: 4, alignItems: 'flex-end', height: 100 }}>
+      <div style={{ display: 'flex', gap: 6, alignItems: 'flex-end', height: 120 }}>
         {hours.map(h => {
           const d   = hourStats[h];
           const pnl = d?.pnl ?? 0;
-          const ht  = d ? Math.max(6, Math.abs(pnl) / maxAbs * 86) : 6;
+          const ht  = d ? Math.max(8, Math.abs(pnl) / maxAbs * 100) : 8;
           const col = pnl > 0 ? 'var(--green)' : pnl < 0 ? 'var(--red)' : 'var(--border)';
           const lbl = h > 12 ? `${h - 12}p` : h === 12 ? '12p' : `${h}a`;
           return (
             <div key={h} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-              <div style={{ fontSize: 8, color: col, fontFamily: 'JetBrains Mono, monospace', fontWeight: 600, textAlign: 'center', minHeight: 10 }}>
+              <div style={{ fontSize: 10, color: col, fontFamily: 'JetBrains Mono, monospace', fontWeight: 600, textAlign: 'center', minHeight: 14 }}>
                 {d ? `${pnl >= 0 ? '+' : ''}${pnl.toFixed(0)}` : ''}
               </div>
-              <div style={{ width: '100%', height: ht, background: col, borderRadius: 3, minHeight: 6 }}
+              <div style={{ width: '100%', height: ht, background: col, borderRadius: 4, minHeight: 8 }}
                 title={d ? `${d.wins}W ${d.count - d.wins}L · $${pnl.toFixed(0)}` : 'No trades'} />
-              <div style={{ fontSize: 9, color: 'var(--text-muted)', textAlign: 'center' }}>{lbl}</div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', textAlign: 'center' }}>{lbl}</div>
               {d && (
-                <div style={{ fontSize: 8, color: 'var(--text-muted)', textAlign: 'center' }}>
+                <div style={{ fontSize: 10, color: 'var(--text-muted)', textAlign: 'center' }}>
                   {Math.round(d.wins / d.count * 100)}%
                 </div>
               )}
@@ -544,13 +544,13 @@ export default function Dashboard() {
       <div style={{ flex: 1, overflowY: 'auto', padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
 
         {/* ── P&L Summary Cards ─────────────────────────────────────────────── */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(148px, 1fr))', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 14 }}>
           {pnlCards.map(({ label, value, color, icon }) => (
-            <div key={label} className="card" style={{ padding: '14px 16px' }}>
-              <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.05em', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 5 }}>
+            <div key={label} className="card" style={{ padding: '18px 22px' }}>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.05em', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span style={{ color: 'var(--accent)' }}>{icon}</span>{label}
               </div>
-              <div style={{ fontSize: 20, fontWeight: 700, fontFamily: 'JetBrains Mono, monospace', color }}>{value}</div>
+              <div style={{ fontSize: 24, fontWeight: 700, fontFamily: 'JetBrains Mono, monospace', color }}>{value}</div>
             </div>
           ))}
         </div>
@@ -564,7 +564,7 @@ export default function Dashboard() {
               { key: 'working',   label: `WORKING ORDERS (${workingOrders.length})` },
             ] as const).map(({ key, label }) => (
               <button key={key} onClick={() => setPosTab(key)}
-                style={{ padding: '11px 16px', border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: 600,
+                style={{ padding: '13px 18px', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600,
                   letterSpacing: '0.05em', background: 'transparent',
                   color: posTab === key ? 'var(--accent)' : 'var(--text-muted)',
                   borderBottom: posTab === key ? '2px solid var(--accent)' : '2px solid transparent',
@@ -573,7 +573,7 @@ export default function Dashboard() {
               </button>
             ))}
             <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6, paddingRight: 16 }}>
-              <div className="live-dot" /><span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Live</span>
+              <div className="live-dot" /><span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Live</span>
             </div>
           </div>
 
@@ -583,11 +583,11 @@ export default function Dashboard() {
               <div style={{ padding: 30, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>No open positions</div>
             ) : (
               <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                   <thead>
                     <tr style={{ borderBottom: '1px solid var(--border)' }}>
                       {['Symbol', 'Type', 'Qty', 'Avg Cost', 'Mark', 'P&L', 'P&L %'].map((h, i) => (
-                        <th key={h} style={{ padding: '8px 14px', textAlign: i === 0 ? 'left' : 'right', fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
+                        <th key={h} style={{ padding: '10px 16px', textAlign: i === 0 ? 'left' : 'right', fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -607,19 +607,19 @@ export default function Dashboard() {
                         <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}
                           onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-hover)')}
                           onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                          <td style={{ padding: '9px 14px', fontWeight: 700, fontFamily: 'JetBrains Mono, monospace', fontSize: 12 }}>
+                          <td style={{ padding: '11px 16px', fontWeight: 700, fontFamily: 'JetBrains Mono, monospace', fontSize: 13 }}>
                             {opt ? formatSym(sym) : sym}
                           </td>
-                          <td style={{ padding: '9px 14px', textAlign: 'right' }}>
-                            <span className={`badge ${opt ? 'badge-blue' : 'badge-amber'}`} style={{ fontSize: 9 }}>{opt ? 'OPT' : 'EQ'}</span>
+                          <td style={{ padding: '11px 16px', textAlign: 'right' }}>
+                            <span className={`badge ${opt ? 'badge-blue' : 'badge-amber'}`} style={{ fontSize: 10 }}>{opt ? 'OPT' : 'EQ'}</span>
                           </td>
-                          <td style={{ padding: '9px 14px', textAlign: 'right', fontFamily: 'JetBrains Mono, monospace' }}>{qty}</td>
-                          <td style={{ padding: '9px 14px', textAlign: 'right', fontFamily: 'JetBrains Mono, monospace' }}>${avg.toFixed(2)}</td>
-                          <td style={{ padding: '9px 14px', textAlign: 'right', fontFamily: 'JetBrains Mono, monospace' }}>${mark.toFixed(2)}</td>
-                          <td style={{ padding: '9px 14px', textAlign: 'right', fontFamily: 'JetBrains Mono, monospace', fontWeight: 600, color: up ? 'var(--green)' : 'var(--red)' }}>
+                          <td style={{ padding: '11px 16px', textAlign: 'right', fontFamily: 'JetBrains Mono, monospace' }}>{qty}</td>
+                          <td style={{ padding: '11px 16px', textAlign: 'right', fontFamily: 'JetBrains Mono, monospace' }}>${avg.toFixed(2)}</td>
+                          <td style={{ padding: '11px 16px', textAlign: 'right', fontFamily: 'JetBrains Mono, monospace' }}>${mark.toFixed(2)}</td>
+                          <td style={{ padding: '11px 16px', textAlign: 'right', fontFamily: 'JetBrains Mono, monospace', fontWeight: 600, color: up ? 'var(--green)' : 'var(--red)' }}>
                             {up ? '+' : ''}${pnl.toFixed(2)}
                           </td>
-                          <td style={{ padding: '9px 14px', textAlign: 'right', fontFamily: 'JetBrains Mono, monospace', fontWeight: 600, color: up ? 'var(--green)' : 'var(--red)' }}>
+                          <td style={{ padding: '11px 16px', textAlign: 'right', fontFamily: 'JetBrains Mono, monospace', fontWeight: 600, color: up ? 'var(--green)' : 'var(--red)' }}>
                             {up ? '+' : ''}{pct.toFixed(2)}%
                           </td>
                         </tr>
@@ -641,7 +641,7 @@ export default function Dashboard() {
                   <thead>
                     <tr style={{ borderBottom: '1px solid var(--border)' }}>
                       {['Symbol', 'Side', 'Type', 'Qty', 'Filled', 'Price', 'Status', 'Time', ''].map((h, i) => (
-                        <th key={i} style={{ padding: '8px 14px', textAlign: i === 0 ? 'left' : 'right', fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
+                        <th key={i} style={{ padding: '10px 16px', textAlign: i === 0 ? 'left' : 'right', fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -654,25 +654,25 @@ export default function Dashboard() {
                         <tr key={order.orderId} style={{ borderBottom: '1px solid var(--border)' }}
                           onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-hover)')}
                           onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                          <td style={{ padding: '9px 14px', fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, fontSize: 12 }}>
+                          <td style={{ padding: '11px 16px', fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, fontSize: 13 }}>
                             {isOpt(sym) ? formatSym(sym) : sym}
                           </td>
-                          <td style={{ padding: '9px 14px', textAlign: 'right' }}>
-                            <span style={{ fontSize: 11, fontWeight: 700, color: side.includes('BUY') ? 'var(--green)' : 'var(--red)' }}>{side}</span>
+                          <td style={{ padding: '11px 16px', textAlign: 'right' }}>
+                            <span style={{ fontSize: 12, fontWeight: 700, color: side.includes('BUY') ? 'var(--green)' : 'var(--red)' }}>{side}</span>
                           </td>
-                          <td style={{ padding: '9px 14px', textAlign: 'right', fontSize: 11, color: 'var(--text-secondary)' }}>{order.orderType}</td>
-                          <td style={{ padding: '9px 14px', textAlign: 'right', fontFamily: 'JetBrains Mono, monospace' }}>{order.quantity}</td>
-                          <td style={{ padding: '9px 14px', textAlign: 'right', fontFamily: 'JetBrains Mono, monospace' }}>{order.filledQuantity}</td>
-                          <td style={{ padding: '9px 14px', textAlign: 'right', fontFamily: 'JetBrains Mono, monospace' }}>
+                          <td style={{ padding: '11px 16px', textAlign: 'right', fontSize: 12, color: 'var(--text-secondary)' }}>{order.orderType}</td>
+                          <td style={{ padding: '11px 16px', textAlign: 'right', fontFamily: 'JetBrains Mono, monospace' }}>{order.quantity}</td>
+                          <td style={{ padding: '11px 16px', textAlign: 'right', fontFamily: 'JetBrains Mono, monospace' }}>{order.filledQuantity}</td>
+                          <td style={{ padding: '11px 16px', textAlign: 'right', fontFamily: 'JetBrains Mono, monospace' }}>
                             {order.price ? `$${Number(order.price).toFixed(2)}` : 'MKT'}
                           </td>
-                          <td style={{ padding: '9px 14px', textAlign: 'right' }}>
+                          <td style={{ padding: '11px 16px', textAlign: 'right' }}>
                             <span className={`badge ${STATUS_COLORS[order.status] ?? 'badge-amber'}`}>{order.status}</span>
                           </td>
-                          <td style={{ padding: '9px 14px', textAlign: 'right', fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                          <td style={{ padding: '11px 16px', textAlign: 'right', fontSize: 12, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
                             {order.enteredTime ? new Date(order.enteredTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--'}
                           </td>
-                          <td style={{ padding: '9px 14px', textAlign: 'right' }}>
+                          <td style={{ padding: '11px 16px', textAlign: 'right' }}>
                             <button onClick={() => cancel(order.orderId)} disabled={cancelling === order.orderId}
                               style={{ background: 'var(--red-bg)', border: 'none', borderRadius: 5, padding: '3px 6px', cursor: 'pointer', color: 'var(--red)', opacity: cancelling === order.orderId ? 0.5 : 1 }}>
                               <XCircle size={13} />
@@ -693,8 +693,8 @@ export default function Dashboard() {
 
         {/* ── Analytics Charts (shared date filter) ─────────────────────────── */}
         <div className="card" style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.05em', flexShrink: 0 }}>
-            <Calendar size={12} style={{ display: 'inline', marginRight: 5 }} />CHARTS PERIOD
+          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.05em', flexShrink: 0 }}>
+            <Calendar size={13} style={{ display: 'inline', marginRight: 5 }} />CHARTS PERIOD
           </span>
           <DateFilterBar
             value={chartFilter} onChange={setChartFilter}
