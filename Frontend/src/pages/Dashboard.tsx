@@ -414,23 +414,23 @@ function PnlByTimeOfDay({ trades }: { trades: any[] }) {
       <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.05em', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 6 }}>
         <Clock size={14} /> P&amp;L BY TIME OF DAY (MT)
       </div>
-      <div style={{ display: 'flex', gap: 6, alignItems: 'flex-end', height: 120 }}>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', height: 220 }}>
         {hours.map(h => {
           const d   = hourStats[h];
           const pnl = d?.pnl ?? 0;
-          const ht  = d ? Math.max(8, Math.abs(pnl) / maxAbs * 100) : 8;
+          const ht  = d ? Math.max(12, Math.abs(pnl) / maxAbs * 190) : 12;
           const col = pnl > 0 ? 'var(--green)' : pnl < 0 ? 'var(--red)' : 'var(--border)';
           const lbl = h > 12 ? `${h - 12}p` : h === 12 ? '12p' : `${h}a`;
           return (
             <div key={h} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-              <div style={{ fontSize: 10, color: col, fontFamily: 'JetBrains Mono, monospace', fontWeight: 600, textAlign: 'center', minHeight: 14 }}>
+              <div style={{ fontSize: 12, color: col, fontFamily: 'JetBrains Mono, monospace', fontWeight: 600, textAlign: 'center', minHeight: 16 }}>
                 {d ? `${pnl >= 0 ? '+' : ''}${pnl.toFixed(0)}` : ''}
               </div>
-              <div style={{ width: '100%', height: ht, background: col, borderRadius: 4, minHeight: 8 }}
+              <div style={{ width: '100%', height: ht, background: col, borderRadius: 4, minHeight: 12 }}
                 title={d ? `${d.wins}W ${d.count - d.wins}L · $${pnl.toFixed(0)}` : 'No trades'} />
-              <div style={{ fontSize: 11, color: 'var(--text-muted)', textAlign: 'center' }}>{lbl}</div>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', marginTop: 4 }}>{lbl}</div>
               {d && (
-                <div style={{ fontSize: 10, color: 'var(--text-muted)', textAlign: 'center' }}>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', textAlign: 'center' }}>
                   {Math.round(d.wins / d.count * 100)}%
                 </div>
               )}
@@ -556,7 +556,7 @@ export default function Dashboard() {
         </div>
 
         {/* ── Positions / Working Orders (top) ───────────────────────────────── */}
-        <div style={{ padding: 0, overflow: 'hidden', minHeight: 60, background: 'var(--bg-card)', border: '1px solid #3a3a5c', borderRadius: 10 }}>
+        <div style={{ padding: 0, overflow: 'hidden', minHeight: 60, background: 'var(--bg-card)', border: '1px solid #3a3a5c', borderRadius: 10, position: 'relative', zIndex: 1 }}>
           {/* Tab header */}
           <div style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid #3a3a5c' }}>
             <button onClick={() => setPosTab('positions')}
@@ -585,7 +585,7 @@ export default function Dashboard() {
             positions.length === 0 ? (
               <div style={{ padding: 30, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>No open positions</div>
             ) : (
-              <div style={{ overflowX: 'auto' }}>
+              <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: 320 }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                   <thead>
                     <tr style={{ borderBottom: '1px solid var(--border)' }}>
@@ -639,7 +639,7 @@ export default function Dashboard() {
             workingOrders.length === 0 ? (
               <div style={{ padding: 30, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>No working orders</div>
             ) : (
-              <div style={{ overflowX: 'auto' }}>
+              <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: 320 }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                   <thead>
                     <tr style={{ borderBottom: '1px solid var(--border)' }}>
