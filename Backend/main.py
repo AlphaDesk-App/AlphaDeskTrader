@@ -117,6 +117,15 @@ async def health():
 # ── Serve frontend static files ───────────────────────────────────────────────
 # Mount the compiled assets directory so JS/CSS bundles load correctly,
 # then catch every other path and return index.html so React Router works.
+#
+# IMPORTANT: the catch-all must never serve HTML for API-like paths — that
+# would cause the frontend to receive <!doctype html> where it expects JSON,
+# producing a cryptic "Unexpected token '<'" parse error.
+_API_PREFIXES = (
+    "auth/", "accounts/", "quotes/", "orders/",
+    "ws/", "journal/", "health",
+)
+
 if DIST_DIR.exists():
     assets_dir = DIST_DIR / "assets"
     if assets_dir.exists():
@@ -124,6 +133,12 @@ if DIST_DIR.exists():
 
     @app.get("/{full_path:path}", include_in_schema=False)
     async def serve_spa(full_path: str):
-        """Return index.html for all non-API routes so React Router handles them."""
+        """Return index.html for SPA routes; JSON 404 for unmatched API paths."""
+        # If the path looks like an API call that slipped through, return JSON 404
+        # instead of HTML — prevents the cryptic parse error on the frontend.
+        if any(full_path == p.rstrip("/") or full_path.startswith(p) for p in _API_PREFIXES):
+            raise HTTPException(status_code=404, detail=f"API route not found: /{full_path}")
         index = DIST_DIR / "index.html"
+        if not index.exists():
+            raise HTTPException(status_code=404, detail="Frontend not built")
         return FileResponse(str(index))

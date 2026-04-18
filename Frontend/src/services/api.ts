@@ -31,8 +31,16 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     throw new Error('Session expired');
   }
   if (!res.ok) {
-    const err = await res.text();
-    throw new Error(err || `HTTP ${res.status}`);
+    const body = await res.text();
+    // Render / nginx can return HTML error pages — surface a clean message
+    if (body.trimStart().startsWith('<')) throw new Error(`HTTP ${res.status} — server error`);
+    throw new Error(body || `HTTP ${res.status}`);
+  }
+  // Guard: the SPA catch-all returns index.html (text/html, status 200).
+  // Detect it here so we never call .json() on HTML and get a cryptic parse error.
+  const ct = res.headers.get('content-type') ?? '';
+  if (!ct.includes('application/json') && !ct.includes('text/plain')) {
+    throw new Error(`Expected JSON but server returned: ${ct} — route may not exist`);
   }
   return res.json();
 }
