@@ -556,22 +556,25 @@ export default function Dashboard() {
         </div>
 
         {/* ── Positions / Working Orders (top) ───────────────────────────────── */}
-        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        <div className="card" style={{ padding: 0, overflow: 'hidden', minHeight: 60 }}>
           {/* Tab header */}
           <div style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid var(--border)' }}>
-            {([
-              { key: 'positions', label: `POSITIONS (${positions.length})` },
-              { key: 'working',   label: `WORKING ORDERS (${workingOrders.length})` },
-            ] as const).map(({ key, label }) => (
-              <button key={key} onClick={() => setPosTab(key)}
-                style={{ padding: '13px 18px', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600,
-                  letterSpacing: '0.05em', background: 'transparent',
-                  color: posTab === key ? 'var(--accent)' : 'var(--text-muted)',
-                  borderBottom: posTab === key ? '2px solid var(--accent)' : '2px solid transparent',
-                  marginBottom: -1, transition: 'all 0.15s' }}>
-                {label}
-              </button>
-            ))}
+            <button onClick={() => setPosTab('positions')}
+              style={{ padding: '13px 18px', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600,
+                letterSpacing: '0.05em', background: 'transparent',
+                color: posTab === 'positions' ? 'var(--accent)' : 'var(--text-muted)',
+                borderBottom: posTab === 'positions' ? '2px solid var(--accent)' : '2px solid transparent',
+                marginBottom: -1, transition: 'all 0.15s' }}>
+              POSITIONS ({positions.length})
+            </button>
+            <button onClick={() => setPosTab('working')}
+              style={{ padding: '13px 18px', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600,
+                letterSpacing: '0.05em', background: 'transparent',
+                color: posTab === 'working' ? 'var(--accent)' : 'var(--text-muted)',
+                borderBottom: posTab === 'working' ? '2px solid var(--accent)' : '2px solid transparent',
+                marginBottom: -1, transition: 'all 0.15s' }}>
+              WORKING ORDERS ({workingOrders.length})
+            </button>
             <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6, paddingRight: 16 }}>
               <div className="live-dot" /><span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Live</span>
             </div>
