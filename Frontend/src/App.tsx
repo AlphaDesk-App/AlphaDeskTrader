@@ -9,15 +9,11 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import ConnectSchwab from './pages/ConnectSchwab';
 import Dashboard from './pages/Dashboard';
-import Markets from './pages/Markets';
-import Charts from './pages/Charts';
-import Positions from './pages/Positions';
 import Journal from './pages/Journal';
 import Settings from './pages/Settings';
 
 const HOTKEY_ROUTES: Record<string, string> = {
-  '1': '/', '2': '/markets', '3': '/charts',
-  '4': '/positions', '5': '/journal',
+  '1': '/', '2': '/journal',
 };
 
 function SpaRedirectHandler() {
@@ -65,12 +61,9 @@ export default function App() {
               <Route path="/connect-schwab" element={<ConnectSchwab />} />
               <Route element={<AuthGuard />}>
                 <Route path="/" element={<Layout />}>
-                  <Route index            element={<Dashboard />} />
-                  <Route path="markets"   element={<Markets />} />
-                  <Route path="charts"    element={<Charts />} />
-                  <Route path="positions" element={<Positions />} />
-                  <Route path="journal"   element={<Journal />} />
-                  <Route path="settings"  element={<Settings />} />
+                  <Route index           element={<Dashboard />} />
+                  <Route path="journal"  element={<Journal />} />
+                  <Route path="settings" element={<Settings />} />
                 </Route>
               </Route>
             </Routes>

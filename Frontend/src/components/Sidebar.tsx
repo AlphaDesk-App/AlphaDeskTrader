@@ -1,12 +1,9 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, BarChart2, CandlestickChart, Briefcase, BookOpen, Settings, Zap } from 'lucide-react';
+import { LayoutDashboard, BookOpen, Settings, Zap } from 'lucide-react';
 
 const navItems = [
-  { to: '/',          icon: LayoutDashboard,  label: 'Dashboard'  },
-  { to: '/markets',   icon: BarChart2,         label: 'Markets'    },
-  { to: '/charts',    icon: CandlestickChart,  label: 'Charts'     },
-  { to: '/positions', icon: Briefcase,         label: 'Positions'  },
-  { to: '/journal',   icon: BookOpen,          label: 'Journal'    },
+  { to: '/',       icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/journal',icon: BookOpen,        label: 'Journal'   },
 ];
 
 export default function Sidebar() {
