@@ -393,8 +393,8 @@ function PnlByTimeOfDay({ trades }: { trades: any[] }) {
   const hourStats = useMemo(() => {
     const map: Record<number, { pnl: number; count: number; wins: number }> = {};
     trades.forEach(t => {
-      // Convert entry time to ET for hour bucketing
-      const etStr = t.entryTime.toLocaleString('en-US', { timeZone: 'America/New_York', hour: 'numeric', hour12: false });
+      // Convert entry time to MT for hour bucketing
+      const etStr = t.entryTime.toLocaleString('en-US', { timeZone: 'America/Denver', hour: 'numeric', hour12: false });
       const h = parseInt(etStr);
       if (isNaN(h)) return;
       if (!map[h]) map[h] = { pnl: 0, count: 0, wins: 0 };
@@ -403,7 +403,7 @@ function PnlByTimeOfDay({ trades }: { trades: any[] }) {
     return map;
   }, [trades]);
 
-  const hours   = Array.from({ length: 8 }, (_, i) => i + 9); // 9am–4pm ET
+  const hours   = Array.from({ length: 8 }, (_, i) => i + 7); // 7am–2pm MT
   const maxAbs  = Math.max(...Object.values(hourStats).map(h => Math.abs(h.pnl)), 1);
   const hasData = Object.keys(hourStats).length > 0;
 
@@ -412,7 +412,7 @@ function PnlByTimeOfDay({ trades }: { trades: any[] }) {
   return (
     <div className="card" style={{ padding: 20 }}>
       <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.05em', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 6 }}>
-        <Clock size={14} /> P&amp;L BY TIME OF DAY (ET)
+        <Clock size={14} /> P&amp;L BY TIME OF DAY (MT)
       </div>
       <div style={{ display: 'flex', gap: 6, alignItems: 'flex-end', height: 120 }}>
         {hours.map(h => {
@@ -556,9 +556,9 @@ export default function Dashboard() {
         </div>
 
         {/* ── Positions / Working Orders (top) ───────────────────────────────── */}
-        <div className="card" style={{ padding: 0, overflow: 'hidden', minHeight: 60 }}>
+        <div style={{ padding: 0, overflow: 'hidden', minHeight: 60, background: 'var(--bg-card)', border: '1px solid #3a3a5c', borderRadius: 10 }}>
           {/* Tab header */}
-          <div style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid var(--border)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid #3a3a5c' }}>
             <button onClick={() => setPosTab('positions')}
               style={{ padding: '13px 18px', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600,
                 letterSpacing: '0.05em', background: 'transparent',
