@@ -541,7 +541,8 @@ export default function Dashboard() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
       <Header title="Dashboard" subtitle="Account overview" />
-      <div style={{ flex: 1, overflowY: 'auto', padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: 20 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
         {/* ── P&L Summary Cards ─────────────────────────────────────────────── */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 14 }}>
@@ -713,6 +714,7 @@ export default function Dashboard() {
         <PnlBySetup     trades={chartTrades} notes={journalNotes} />
         <PnlByTimeOfDay trades={chartTrades} />
 
+        </div>
       </div>
     </div>
   );
