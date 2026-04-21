@@ -310,19 +310,35 @@ function PnlLineGraph({ allTrades }: { allTrades: any[] }) {
   const [customTo,   setCustomTo]   = useState('');
   const [hoverIdx,   setHoverIdx]   = useState<number | null>(null);
 
-  // Build cumulative equity curve within the selected date range
+  // Build cumulative DAILY equity curve within the selected date range
   const { points, minPnl, maxPnl, totalPnl, winCount, tradeCount } = useMemo(() => {
     const [from, to] = getDateRange(filter, customFrom, customTo);
     const filtered = allTrades
       .filter(t => t.exitTime >= from && t.exitTime <= to)
       .sort((a, b) => a.exitTime.getTime() - b.exitTime.getTime());
 
-    let cum = 0;
-    const pts = [{ cum: 0, trade: null as any, date: from }];
-    filtered.forEach(t => { cum += t.pnl; pts.push({ cum, trade: t, date: t.exitTime }); });
+    // Group trades into daily buckets
+    const dayMap: Record<string, { pnl: number; wins: number; count: number; date: Date }> = {};
+    filtered.forEach(t => {
+      const d = t.exitTime;
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      if (!dayMap[key]) dayMap[key] = { pnl: 0, wins: 0, count: 0, date: new Date(d.getFullYear(), d.getMonth(), d.getDate()) };
+      dayMap[key].pnl   += t.pnl;
+      dayMap[key].count += 1;
+      if (t.win) dayMap[key].wins += 1;
+    });
 
-    const vals  = pts.map(p => p.cum);
-    const wins  = filtered.filter(t => t.win).length;
+    const days = Object.values(dayMap).sort((a, b) => a.date.getTime() - b.date.getTime());
+
+    let cum = 0;
+    const pts = [{ cum: 0, dayPnl: 0, wins: 0, count: 0, date: from }];
+    days.forEach(day => {
+      cum += day.pnl;
+      pts.push({ cum, dayPnl: day.pnl, wins: day.wins, count: day.count, date: day.date });
+    });
+
+    const vals = pts.map(p => p.cum);
+    const wins = filtered.filter(t => t.win).length;
     return {
       points:     pts,
       minPnl:     Math.min(...vals, 0),
@@ -463,7 +479,7 @@ function PnlLineGraph({ allTrades }: { allTrades: any[] }) {
                     </text>
                     <text x={bx + 8} y={by + 28} fontSize={9} fill="#9ca3af" fontFamily="sans-serif">
                       {hov.date.toLocaleDateString([], { month: 'short', day: 'numeric', year: '2-digit' })}
-                      {hov.trade ? `  ${hov.trade.win ? '▲' : '▼'} $${Math.abs(hov.trade.pnl).toFixed(0)}` : '  Start'}
+                      {hov.count > 0 ? `  ${hov.dayPnl >= 0 ? '▲' : '▼'} $${Math.abs(hov.dayPnl).toFixed(0)} · ${hov.count}T` : '  Start'}
                     </text>
                   </g>
                 );

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { BarChart2, List, Clock } from 'lucide-react';
+import { BarChart2, List } from 'lucide-react';
 import Header from '../components/Header';
 import { useApp } from '../context/AppContext';
 import { api } from '../services/api';
@@ -162,14 +162,6 @@ function AnalyticsView({ trades }: { trades: any[] }) {
     setupStats[s].count++; setupStats[s].wins += t.win?1:0; setupStats[s].pnl += t.pnl;
   });
 
-  const hourStats: Record<number,{count:number;wins:number;pnl:number}> = {};
-  trades.forEach(t => {
-    const h = t.entryTime.getHours();
-    if (!hourStats[h]) hourStats[h] = {count:0,wins:0,pnl:0};
-    hourStats[h].count++; hourStats[h].wins += t.win?1:0; hourStats[h].pnl += t.pnl;
-  });
-  const maxPnl = Math.max(...Object.values(hourStats).map(h=>Math.abs(h.pnl)), 1);
-
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
       {/* Summary cards */}
@@ -187,30 +179,6 @@ function AnalyticsView({ trades }: { trades: any[] }) {
             <div style={{fontSize:18,fontWeight:700,color,fontFamily:'JetBrains Mono,monospace'}}>{value}</div>
           </div>
         ))}
-      </div>
-
-      {/* Time of day */}
-      <div className="card" style={{padding:20}}>
-        <div style={{fontSize:11,fontWeight:600,color:'var(--text-muted)',marginBottom:14,display:'flex',alignItems:'center',gap:6,letterSpacing:'0.05em'}}>
-          <Clock size={13}/> TIME OF DAY PERFORMANCE
-        </div>
-        <div style={{display:'flex',gap:3,alignItems:'flex-end',height:90}}>
-          {Array.from({length:13},(_,i)=>i+9).map(h => {
-            const d = hourStats[h]; const pnl = d?.pnl??0;
-            const ht = d ? Math.max(8,Math.abs(pnl)/maxPnl*76) : 8;
-            const col = pnl>0?'var(--green)':pnl<0?'var(--red)':'var(--border)';
-            return (
-              <div key={h} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:3}}>
-                <div style={{fontSize:8,color:col,fontFamily:'JetBrains Mono,monospace',fontWeight:600,textAlign:'center'}}>
-                  {d?`${pnl>=0?'+':''}${pnl.toFixed(0)}`:''}
-                </div>
-                <div style={{width:'100%',height:ht,background:col,borderRadius:3,minHeight:8}}
-                  title={d?`${d.wins}W ${d.count-d.wins}L | $${pnl.toFixed(0)}`:'No trades'}/>
-                <div style={{fontSize:8,color:'var(--text-muted)',textAlign:'center'}}>{h>12?`${h-12}p`:h===12?'12p':`${h}a`}</div>
-              </div>
-            );
-          })}
-        </div>
       </div>
 
       {/* Setup breakdown */}
