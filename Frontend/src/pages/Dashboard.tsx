@@ -303,6 +303,179 @@ function CalendarWidget({ trades }: { trades: any[] }) {
   );
 }
 
+// ── P&L Line Graph ────────────────────────────────────────────────────────────
+function PnlLineGraph({ allTrades }: { allTrades: any[] }) {
+  const [filter,     setFilter]     = useState<DateFilter>('This Month');
+  const [customFrom, setCustomFrom] = useState('');
+  const [customTo,   setCustomTo]   = useState('');
+  const [hoverIdx,   setHoverIdx]   = useState<number | null>(null);
+
+  // Build cumulative equity curve within the selected date range
+  const { points, minPnl, maxPnl, totalPnl, winCount, tradeCount } = useMemo(() => {
+    const [from, to] = getDateRange(filter, customFrom, customTo);
+    const filtered = allTrades
+      .filter(t => t.exitTime >= from && t.exitTime <= to)
+      .sort((a, b) => a.exitTime.getTime() - b.exitTime.getTime());
+
+    let cum = 0;
+    const pts = [{ cum: 0, trade: null as any, date: from }];
+    filtered.forEach(t => { cum += t.pnl; pts.push({ cum, trade: t, date: t.exitTime }); });
+
+    const vals  = pts.map(p => p.cum);
+    const wins  = filtered.filter(t => t.win).length;
+    return {
+      points:     pts,
+      minPnl:     Math.min(...vals, 0),
+      maxPnl:     Math.max(...vals, 0),
+      totalPnl:   cum,
+      winCount:   wins,
+      tradeCount: filtered.length,
+    };
+  }, [allTrades, filter, customFrom, customTo]);
+
+  const W = 760, H = 180, PAD = { t: 16, r: 16, b: 32, l: 64 };
+  const innerW = W - PAD.l - PAD.r;
+  const innerH = H - PAD.t - PAD.b;
+
+  const range  = maxPnl - minPnl || 1;
+  const toX    = (i: number) => PAD.l + (i / Math.max(points.length - 1, 1)) * innerW;
+  const toY    = (v: number) => PAD.t + ((maxPnl - v) / range) * innerH;
+  const zeroY  = toY(0);
+
+  // Build SVG path string
+  const pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${toX(i).toFixed(1)},${toY(p.cum).toFixed(1)}`).join(' ');
+  // Closed path for fill (trace line then close along bottom/top)
+  const closedPath = (clip: 'above' | 'below') => {
+    const pts2 = points.map((p, i) => `${toX(i).toFixed(1)},${toY(p.cum).toFixed(1)}`).join(' L');
+    const last  = toX(points.length - 1).toFixed(1);
+    const first = toX(0).toFixed(1);
+    return `M${first},${zeroY.toFixed(1)} L${pts2} L${last},${zeroY.toFixed(1)} Z`;
+  };
+
+  // Y-axis labels
+  const yTicks = 5;
+  const yLabels = Array.from({ length: yTicks + 1 }, (_, i) => {
+    const val = minPnl + (range / yTicks) * i;
+    return { val, y: toY(val) };
+  });
+
+  // X-axis date labels (up to 6)
+  const xStep = Math.max(1, Math.floor(points.length / 6));
+  const xLabels = points
+    .filter((_, i) => i === 0 || i === points.length - 1 || i % xStep === 0)
+    .map((p, _, arr) => ({ label: p.date.toLocaleDateString([], { month: 'short', day: 'numeric' }), x: toX(points.indexOf(p)) }));
+
+  const hov = hoverIdx !== null && hoverIdx < points.length ? points[hoverIdx] : null;
+
+  if (tradeCount === 0) return (
+    <div className="card" style={{ padding: 20 }}>
+      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.05em', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
+        <TrendingUp size={14} /> P&amp;L EQUITY CURVE
+      </div>
+      <DateFilterBar value={filter} onChange={setFilter} customFrom={customFrom} customTo={customTo} onCustomFrom={setCustomFrom} onCustomTo={setCustomTo} />
+      <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13, marginTop: 12 }}>No trades in selected period</div>
+    </div>
+  );
+
+  return (
+    <div className="card" style={{ padding: 20 }}>
+      {/* Header row */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <TrendingUp size={14} /> P&amp;L EQUITY CURVE
+          </div>
+          <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 20, fontWeight: 700, color: totalPnl >= 0 ? 'var(--green)' : 'var(--red)' }}>
+            {totalPnl >= 0 ? '+' : ''}${totalPnl.toFixed(2)}
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+            {tradeCount} trades · {winCount}W {tradeCount - winCount}L · {tradeCount > 0 ? Math.round(winCount / tradeCount * 100) : 0}% WR
+          </div>
+        </div>
+        <DateFilterBar value={filter} onChange={setFilter} customFrom={customFrom} customTo={customTo} onCustomFrom={setCustomFrom} onCustomTo={setCustomTo} />
+      </div>
+
+      {/* SVG Chart */}
+      <div style={{ position: 'relative', userSelect: 'none' }}>
+        <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ display: 'block', overflow: 'visible' }}
+          onMouseMove={e => {
+            const rect = (e.currentTarget as SVGSVGElement).getBoundingClientRect();
+            const svgX  = ((e.clientX - rect.left) / rect.width) * W;
+            const relX  = svgX - PAD.l;
+            const idx   = Math.round((relX / innerW) * (points.length - 1));
+            setHoverIdx(Math.max(0, Math.min(points.length - 1, idx)));
+          }}
+          onMouseLeave={() => setHoverIdx(null)}>
+          <defs>
+            {/* Clip above zero → green fill */}
+            <clipPath id="clip-above">
+              <rect x={PAD.l} y={PAD.t} width={innerW} height={Math.max(0, zeroY - PAD.t)} />
+            </clipPath>
+            {/* Clip below zero → red fill */}
+            <clipPath id="clip-below">
+              <rect x={PAD.l} y={zeroY} width={innerW} height={Math.max(0, PAD.t + innerH - zeroY)} />
+            </clipPath>
+          </defs>
+
+          {/* Y-axis grid lines */}
+          {yLabels.map(({ val, y }, i) => (
+            <g key={i}>
+              <line x1={PAD.l} y1={y} x2={PAD.l + innerW} y2={y}
+                stroke={val === 0 ? '#4b5563' : '#1f2937'} strokeWidth={val === 0 ? 1 : 0.5} strokeDasharray={val === 0 ? '' : '3,3'} />
+              <text x={PAD.l - 6} y={y + 4} textAnchor="end" fontSize={9} fill="#6b7280" fontFamily="monospace">
+                {val >= 0 ? '+' : ''}{val >= 1000 || val <= -1000 ? `${(val / 1000).toFixed(1)}k` : val.toFixed(0)}
+              </text>
+            </g>
+          ))}
+
+          {/* Green fill (above zero) */}
+          <path d={closedPath('above')} fill="var(--green)" fillOpacity={0.15} clipPath="url(#clip-above)" />
+          {/* Red fill (below zero) */}
+          <path d={closedPath('below')} fill="var(--red)" fillOpacity={0.15} clipPath="url(#clip-below)" />
+
+          {/* Main line — green segment */}
+          <path d={pathD} fill="none" stroke="var(--green)" strokeWidth={2} clipPath="url(#clip-above)" strokeLinecap="round" strokeLinejoin="round" />
+          {/* Main line — red segment */}
+          <path d={pathD} fill="none" stroke="var(--red)" strokeWidth={2} clipPath="url(#clip-below)" strokeLinecap="round" strokeLinejoin="round" />
+
+          {/* X-axis labels */}
+          {xLabels.map(({ label, x }, i) => (
+            <text key={i} x={x} y={H - 6} textAnchor="middle" fontSize={9} fill="#6b7280" fontFamily="sans-serif">{label}</text>
+          ))}
+
+          {/* Hover crosshair */}
+          {hov && hoverIdx !== null && (
+            <g>
+              <line x1={toX(hoverIdx)} y1={PAD.t} x2={toX(hoverIdx)} y2={PAD.t + innerH}
+                stroke="#6b7280" strokeWidth={1} strokeDasharray="4,3" />
+              <circle cx={toX(hoverIdx)} cy={toY(hov.cum)} r={4}
+                fill={hov.cum >= 0 ? 'var(--green)' : 'var(--red)'} stroke="var(--bg-card)" strokeWidth={2} />
+              {/* Tooltip bubble */}
+              {(() => {
+                const bx  = Math.min(toX(hoverIdx) + 8, W - 130);
+                const by  = Math.max(toY(hov.cum) - 44, PAD.t);
+                const pos = hov.cum >= 0;
+                return (
+                  <g>
+                    <rect x={bx} y={by} width={122} height={40} rx={5} fill="var(--bg-secondary)" stroke={pos ? 'var(--green)' : 'var(--red)'} strokeWidth={1} />
+                    <text x={bx + 8} y={by + 14} fontSize={10} fontWeight="bold" fill={pos ? 'var(--green)' : 'var(--red)'} fontFamily="monospace">
+                      {pos ? '+' : ''}${hov.cum.toFixed(2)}
+                    </text>
+                    <text x={bx + 8} y={by + 28} fontSize={9} fill="#9ca3af" fontFamily="sans-serif">
+                      {hov.date.toLocaleDateString([], { month: 'short', day: 'numeric', year: '2-digit' })}
+                      {hov.trade ? `  ${hov.trade.win ? '▲' : '▼'} $${Math.abs(hov.trade.pnl).toFixed(0)}` : '  Start'}
+                    </text>
+                  </g>
+                );
+              })()}
+            </g>
+          )}
+        </svg>
+      </div>
+    </div>
+  );
+}
+
 // ── P&L by Symbol ─────────────────────────────────────────────────────────────
 function PnlBySymbol({ trades }: { trades: any[] }) {
   const symPnl = useMemo(() => {
@@ -698,6 +871,9 @@ export default function Dashboard() {
 
         {/* ── Trading Calendar ───────────────────────────────────────────────── */}
         <CalendarWidget trades={allTrades} />
+
+        {/* ── P&L Equity Curve ──────────────────────────────────────────────── */}
+        <PnlLineGraph allTrades={allTrades} />
 
         {/* ── Analytics Charts (shared date filter) ─────────────────────────── */}
         <div className="card" style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>

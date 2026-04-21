@@ -5,8 +5,8 @@ import { useApp } from '../context/AppContext';
 import { api } from '../services/api';
 
 const SETUPS = [
-  'Opening Range FVG Breakout Bullish',
-  'Opening Range FVG Breakout Bearish',
+  'ORB Bull',
+  'ORB Bear',
   'PDH Setup', 'PDL Setup',
   'PMH Setup', 'PML Setup',
   'Other',
