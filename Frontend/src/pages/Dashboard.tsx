@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, Component, type ReactNode } from 'react';
 import {
   TrendingUp, BarChart2, Zap, ChevronLeft, ChevronRight,
   DollarSign, Percent, XCircle, Calendar, Clock,
@@ -302,6 +302,25 @@ function CalendarWidget({ trades }: { trades: any[] }) {
       </div>
     </div>
   );
+}
+
+// ── Error boundary for chart ──────────────────────────────────────────────────
+class ChartErrorBoundary extends Component<{ children: ReactNode }, { error: string | null }> {
+  constructor(props: any) { super(props); this.state = { error: null }; }
+  static getDerivedStateFromError(e: any) { return { error: String(e?.message ?? e) }; }
+  render() {
+    if (this.state.error) return (
+      <div className="card" style={{ padding: 20 }}>
+        <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.05em', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <TrendingUp size={14} /> P&amp;L EQUITY CURVE
+        </div>
+        <div style={{ padding: '20px 0', color: 'var(--red)', fontSize: 12, fontFamily: 'monospace' }}>
+          ⚠️ Chart render error: {this.state.error}
+        </div>
+      </div>
+    );
+    return this.props.children;
+  }
 }
 
 // ── P&L Line Graph ────────────────────────────────────────────────────────────
@@ -918,7 +937,9 @@ export default function Dashboard() {
         <CalendarWidget trades={allTrades} />
 
         {/* ── P&L Equity Curve ──────────────────────────────────────────────── */}
-        <PnlLineGraph allTrades={allTrades} />
+        <ChartErrorBoundary>
+          <PnlLineGraph allTrades={allTrades} />
+        </ChartErrorBoundary>
 
         {/* ── Analytics Charts (shared date filter) ─────────────────────────── */}
         <div className="card" style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
