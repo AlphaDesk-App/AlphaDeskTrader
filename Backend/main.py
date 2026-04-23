@@ -24,8 +24,8 @@ DIST_DIR = Path(__file__).parent.parent / "Frontend" / "dist"
 logger = logging.getLogger(__name__)
 
 TOKEN_URL = "https://api.schwabapi.com/v1/oauth/token"
-REFRESH_INTERVAL = 6 * 24 * 60 * 60   # 6 days in seconds
-STARTUP_DELAY    = 5 * 60              # wait 5 min after boot before first sweep
+REFRESH_INTERVAL = 5 * 24 * 60 * 60   # 5 days in seconds (safely under 7-day Schwab limit)
+STARTUP_DELAY    = 30                  # refresh tokens 30 seconds after every cold start
 
 
 async def _refresh_token(token: SchwabToken) -> bool:
