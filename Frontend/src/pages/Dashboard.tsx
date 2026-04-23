@@ -312,41 +312,63 @@ function PnlLineGraph({ allTrades }: { allTrades: any[] }) {
 
   // Build cumulative DAILY equity curve within the selected date range
   const { points, minPnl, maxPnl, totalPnl, winCount, tradeCount } = useMemo(() => {
-    const [from, to] = getDateRange(filter, customFrom, customTo);
-    const filtered = allTrades
-      .filter(t => t.exitTime >= from && t.exitTime <= to)
-      .sort((a, b) => a.exitTime.getTime() - b.exitTime.getTime());
+    try {
+      const [from, to] = getDateRange(filter, customFrom, customTo);
 
-    // Group trades into daily buckets
-    const dayMap: Record<string, { pnl: number; wins: number; count: number; date: Date }> = {};
-    filtered.forEach(t => {
-      const d = t.exitTime;
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-      if (!dayMap[key]) dayMap[key] = { pnl: 0, wins: 0, count: 0, date: new Date(d.getFullYear(), d.getMonth(), d.getDate()) };
-      dayMap[key].pnl   += t.pnl;
-      dayMap[key].count += 1;
-      if (t.win) dayMap[key].wins += 1;
-    });
+      // Defensive: handle exitTime as Date OR string
+      const toDate = (v: any): Date => {
+        if (v instanceof Date) return v;
+        const d = new Date(v);
+        return isNaN(d.getTime()) ? new Date() : d;
+      };
 
-    const days = Object.values(dayMap).sort((a, b) => a.date.getTime() - b.date.getTime());
+      const filtered = allTrades
+        .filter(t => {
+          const et = toDate(t.exitTime);
+          return et >= from && et <= to;
+        })
+        .sort((a, b) => toDate(a.exitTime).getTime() - toDate(b.exitTime).getTime());
 
-    let cum = 0;
-    const pts = [{ cum: 0, dayPnl: 0, wins: 0, count: 0, date: from }];
-    days.forEach(day => {
-      cum += day.pnl;
-      pts.push({ cum, dayPnl: day.pnl, wins: day.wins, count: day.count, date: day.date });
-    });
+      // Group trades into daily buckets
+      const dayMap: Record<string, { pnl: number; wins: number; count: number; date: Date }> = {};
+      filtered.forEach(t => {
+        const d   = toDate(t.exitTime);
+        const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+        if (!dayMap[key]) dayMap[key] = { pnl: 0, wins: 0, count: 0, date: new Date(d.getFullYear(), d.getMonth(), d.getDate()) };
+        dayMap[key].pnl   += t.pnl;
+        dayMap[key].count += 1;
+        if (t.win) dayMap[key].wins += 1;
+      });
 
-    const vals = pts.map(p => p.cum);
-    const wins = filtered.filter(t => t.win).length;
-    return {
-      points:     pts,
-      minPnl:     Math.min(...vals, 0),
-      maxPnl:     Math.max(...vals, 0),
-      totalPnl:   cum,
-      winCount:   wins,
-      tradeCount: filtered.length,
-    };
+      const days = Object.values(dayMap).sort((a, b) => a.date.getTime() - b.date.getTime());
+
+      let cum = 0;
+      const pts: { cum: number; dayPnl: number; wins: number; count: number; date: Date }[] = [
+        { cum: 0, dayPnl: 0, wins: 0, count: 0, date: from }
+      ];
+      days.forEach(day => {
+        cum += day.pnl;
+        pts.push({ cum, dayPnl: day.pnl, wins: day.wins, count: day.count, date: day.date });
+      });
+
+      // Use reduce to avoid spread stack overflow on large arrays
+      const vals = pts.map(p => p.cum);
+      const minV = vals.reduce((a, b) => Math.min(a, b), 0);
+      const maxV = vals.reduce((a, b) => Math.max(a, b), 0);
+      const wins = filtered.filter(t => t.win).length;
+
+      return {
+        points:     pts,
+        minPnl:     minV,
+        maxPnl:     maxV,
+        totalPnl:   cum,
+        winCount:   wins,
+        tradeCount: filtered.length,
+      };
+    } catch (e) {
+      console.error('PnlLineGraph useMemo error:', e);
+      return { points: [] as any[], minPnl: 0, maxPnl: 0, totalPnl: 0, winCount: 0, tradeCount: 0 };
+    }
   }, [allTrades, filter, customFrom, customTo]);
 
   const W = 760, H = 180, PAD = { t: 16, r: 16, b: 32, l: 64 };
@@ -378,8 +400,9 @@ function PnlLineGraph({ allTrades }: { allTrades: any[] }) {
   // X-axis date labels (up to 6)
   const xStep = Math.max(1, Math.floor(points.length / 6));
   const xLabels = points
-    .filter((_, i) => i === 0 || i === points.length - 1 || i % xStep === 0)
-    .map((p, _, arr) => ({ label: p.date.toLocaleDateString([], { month: 'short', day: 'numeric' }), x: toX(points.indexOf(p)) }));
+    .map((p, i) => ({ p, i }))
+    .filter(({ i }) => i === 0 || i === points.length - 1 || i % xStep === 0)
+    .map(({ p, i }) => ({ label: p.date.toLocaleDateString([], { month: 'short', day: 'numeric' }), x: toX(i) }));
 
   const hov = hoverIdx !== null && hoverIdx < points.length ? points[hoverIdx] : null;
 
