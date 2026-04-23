@@ -8,7 +8,7 @@ import Header from '../components/Header';
 import { useApp } from '../context/AppContext';
 
 // ── Date filter ───────────────────────────────────────────────────────────────
-const DATE_FILTERS = ['Today', 'Yesterday', 'This Week', 'This Month', 'This Year', 'Custom'] as const;
+const DATE_FILTERS = ['Today', 'Yesterday', 'This Week', 'This Month', 'This Year', 'All Time', 'Custom'] as const;
 type DateFilter = typeof DATE_FILTERS[number];
 
 function getDateRange(filter: DateFilter, customFrom: string, customTo: string): [Date, Date] {
@@ -21,6 +21,7 @@ function getDateRange(filter: DateFilter, customFrom: string, customTo: string):
     case 'This Week':  { const mon = new Date(today.getTime() - today.getDay() * 86400000); return [mon, end]; }
     case 'This Month': return [new Date(now.getFullYear(), now.getMonth(), 1), end];
     case 'This Year':  return [new Date(now.getFullYear(), 0, 1), end];
+    case 'All Time':   return [new Date(2000, 0, 1), end];
     case 'Custom': {
       const from = customFrom ? new Date(customFrom) : today;
       const to   = customTo   ? new Date(new Date(customTo).getTime() + 86400000 - 1) : end;
@@ -305,7 +306,7 @@ function CalendarWidget({ trades }: { trades: any[] }) {
 
 // ── P&L Line Graph ────────────────────────────────────────────────────────────
 function PnlLineGraph({ allTrades }: { allTrades: any[] }) {
-  const [filter,     setFilter]     = useState<DateFilter>('This Year');
+  const [filter,     setFilter]     = useState<DateFilter>('All Time');
   const [customFrom, setCustomFrom] = useState('');
   const [customTo,   setCustomTo]   = useState('');
   const [hoverIdx,   setHoverIdx]   = useState<number | null>(null);
@@ -413,7 +414,11 @@ function PnlLineGraph({ allTrades }: { allTrades: any[] }) {
         <TrendingUp size={14} /> P&amp;L EQUITY CURVE
       </div>
       <DateFilterBar value={filter} onChange={setFilter} customFrom={customFrom} customTo={customTo} onCustomFrom={setCustomFrom} onCustomTo={setCustomTo} />
-      <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13, marginTop: 12 }}>No trades in selected period</div>
+      <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13, marginTop: 12 }}>
+        {allTrades.length === 0
+          ? '⚠️ No closed trades found — Schwab may still be loading or no paired buy/sell orders exist yet'
+          : `No trades in selected period · ${allTrades.length} total trade${allTrades.length !== 1 ? 's' : ''} found — try "All Time"`}
+      </div>
     </div>
   );
 
