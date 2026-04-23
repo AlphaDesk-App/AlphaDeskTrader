@@ -305,7 +305,7 @@ function CalendarWidget({ trades }: { trades: any[] }) {
 
 // ── P&L Line Graph ────────────────────────────────────────────────────────────
 function PnlLineGraph({ allTrades }: { allTrades: any[] }) {
-  const [filter,     setFilter]     = useState<DateFilter>('This Month');
+  const [filter,     setFilter]     = useState<DateFilter>('This Year');
   const [customFrom, setCustomFrom] = useState('');
   const [customTo,   setCustomTo]   = useState('');
   const [hoverIdx,   setHoverIdx]   = useState<number | null>(null);
@@ -383,7 +383,8 @@ function PnlLineGraph({ allTrades }: { allTrades: any[] }) {
 
   const hov = hoverIdx !== null && hoverIdx < points.length ? points[hoverIdx] : null;
 
-  if (tradeCount === 0) return (
+  // Need at least 2 points (start + 1 trading day) to draw a line
+  if (tradeCount === 0 || points.length < 2) return (
     <div className="card" style={{ padding: 20 }}>
       <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.05em', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
         <TrendingUp size={14} /> P&amp;L EQUITY CURVE
