@@ -78,8 +78,19 @@ function formatSym(sym: string) {
 }
 
 function getPrice(ord: any): number {
-  const execPrice = ord.orderActivityCollection?.[0]?.executionLegs?.[0]?.price;
-  return execPrice ?? ord.averagePrice ?? ord.price ?? 0;
+  // Walk every execution leg across all fill activities — return first non-zero price found
+  for (const act of ord.orderActivityCollection ?? []) {
+    for (const leg of act.executionLegs ?? []) {
+      const p = Number(leg.price);
+      if (p > 0) return p;
+    }
+  }
+  // Fall back to order-level prices, skipping 0 (Schwab sometimes sends 0 instead of null)
+  const avg = Number(ord.averagePrice);
+  if (avg > 0) return avg;
+  const lim = Number(ord.price);
+  if (lim > 0) return lim;
+  return 0;
 }
 
 // FIFO partial-fill trade pairing — includes id so journal notes can be merged
@@ -124,19 +135,18 @@ function pairTrades(orders: any[]) {
           const matchQty = Math.min(pos.remaining, exitRem);
           const entryPx  = getPrice(pos.order);
           const exitPx   = getPrice(o);
-          if (entryPx !== 0 || exitPx !== 0) {
-            // Long: profit when exit > entry. Short: profit when entry > exit.
-            const pnl = pos.short
-              ? (entryPx - exitPx) * matchQty * mult
-              : (exitPx  - entryPx) * matchQty * mult;
-            trades.push({
-              id:        `${pos.order.orderId}-${o.orderId}`,
-              symbol:    sym,
-              entryTime: new Date(pos.order.closeTime ?? pos.order.enteredTime ?? Date.now()),
-              exitTime:  new Date(o.closeTime ?? o.enteredTime ?? Date.now()),
-              pnl, win: pnl > 0, qty: matchQty,
-            });
-          }
+          // Long: profit when exit > entry. Short: profit when entry > exit.
+          const pnl = pos.short
+            ? (entryPx - exitPx) * matchQty * mult
+            : (exitPx  - entryPx) * matchQty * mult;
+          trades.push({
+            id:        `${pos.order.orderId}-${o.orderId}`,
+            symbol:    sym,
+            entryTime: new Date(pos.order.closeTime ?? pos.order.enteredTime ?? Date.now()),
+            exitTime:  new Date(o.closeTime ?? o.enteredTime ?? Date.now()),
+            entryPx, exitPx,
+            pnl, win: pnl > 0, qty: matchQty,
+          });
           pos.remaining -= matchQty;
           exitRem       -= matchQty;
           if (pos.remaining === 0) posQueue.shift();
@@ -735,7 +745,7 @@ function TradeHistory({ trades }: { trades: any[] }) {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                {['Symbol', 'Entry Time', 'Exit Time', 'Qty', 'P&L'].map((h, i) => (
+                {['Symbol', 'Entry Time', 'Exit Time', 'Qty', 'Entry $', 'Exit $', 'P&L'].map((h, i) => (
                   <th key={h} style={{ padding: '8px 12px', textAlign: i >= 3 ? 'right' : 'left', fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
@@ -764,6 +774,12 @@ function TradeHistory({ trades }: { trades: any[] }) {
                       {fmtT(exitT)}
                     </td>
                     <td style={{ padding: '10px 12px', textAlign: 'right', fontFamily: 'JetBrains Mono, monospace' }}>{t.qty}</td>
+                    <td style={{ padding: '10px 12px', textAlign: 'right', fontFamily: 'JetBrains Mono, monospace', color: 'var(--text-secondary)' }}>
+                      {t.entryPx > 0 ? `$${t.entryPx.toFixed(2)}` : <span style={{color:'var(--red)'}}>?</span>}
+                    </td>
+                    <td style={{ padding: '10px 12px', textAlign: 'right', fontFamily: 'JetBrains Mono, monospace', color: 'var(--text-secondary)' }}>
+                      {t.exitPx > 0 ? `$${t.exitPx.toFixed(2)}` : <span style={{color:'var(--red)'}}>?</span>}
+                    </td>
                     <td style={{ padding: '10px 12px', textAlign: 'right', fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, color: pos ? 'var(--green)' : 'var(--red)' }}>
                       {pos ? '+' : ''}${t.pnl.toFixed(2)}
                     </td>
