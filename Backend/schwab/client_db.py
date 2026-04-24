@@ -188,7 +188,7 @@ class SchwabClientDB:
                 params={
                     "fromEnteredTime": start_dt.strftime("%Y-%m-%dT%H:%M:%S.000Z"),
                     "toEnteredTime":   end_dt.strftime("%Y-%m-%dT%H:%M:%S.000Z"),
-                    "maxResults": 250,
+                    "maxResults": 1000,
                 },
                 headers=headers,
             )

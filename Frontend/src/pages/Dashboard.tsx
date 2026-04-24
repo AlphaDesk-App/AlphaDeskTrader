@@ -77,10 +77,17 @@ function getPrice(ord: any): number {
 }
 
 // FIFO partial-fill trade pairing — includes id so journal notes can be merged
+function orderFillTime(o: any): number {
+  // Prefer closeTime (actual fill time) over enteredTime (order placed time).
+  // Same-day repeated trades on the same symbol require correct fill ordering.
+  const t = o.closeTime ?? o.enteredTime;
+  return t ? new Date(t).getTime() : 0;
+}
+
 function pairTrades(orders: any[]) {
   const filled = orders
     .filter(o => o.status === 'FILLED' && o.orderLegCollection?.[0])
-    .sort((a, b) => new Date(a.enteredTime ?? 0).getTime() - new Date(b.enteredTime ?? 0).getTime());
+    .sort((a, b) => orderFillTime(a) - orderFillTime(b));
 
   const bySymbol: Record<string, any[]> = {};
   filled.forEach(o => {
@@ -92,28 +99,35 @@ function pairTrades(orders: any[]) {
   const trades: any[] = [];
   Object.entries(bySymbol).forEach(([sym, ords]) => {
     const mult = isOpt(sym) ? 100 : 1;
-    const posQueue: Array<{ order: any; remaining: number }> = [];
+    const posQueue: Array<{ order: any; remaining: number; short: boolean }> = [];
     ords.forEach(o => {
-      const instr   = (o.orderLegCollection[0].instruction ?? '').toUpperCase();
-      const isEntry = instr === 'BUY' || instr === 'BUY_TO_OPEN';
-      const isExit  = instr === 'SELL' || instr === 'SELL_TO_CLOSE' || instr === 'SELL_SHORT';
-      const qty     = o.filledQuantity ?? o.quantity ?? 1;
-      if (isEntry) {
-        posQueue.push({ order: o, remaining: qty });
-      } else if (isExit) {
+      const instr    = (o.orderLegCollection[0].instruction ?? '').toUpperCase();
+      const isLongEntry  = instr === 'BUY'          || instr === 'BUY_TO_OPEN';
+      const isLongExit   = instr === 'SELL'         || instr === 'SELL_TO_CLOSE';
+      const isShortEntry = instr === 'SELL_SHORT'   || instr === 'SELL_TO_OPEN';
+      const isShortExit  = instr === 'BUY_TO_COVER' || instr === 'BUY_TO_CLOSE';
+      const qty = Number(o.filledQuantity ?? o.quantity ?? 1);
+      if (qty <= 0) return; // skip zero-qty orders
+
+      if (isLongEntry || isShortEntry) {
+        posQueue.push({ order: o, remaining: qty, short: isShortEntry });
+      } else if (isLongExit || isShortExit) {
         let exitRem = qty;
         while (exitRem > 0 && posQueue.length > 0) {
           const pos      = posQueue[0];
           const matchQty = Math.min(pos.remaining, exitRem);
-          const bp       = getPrice(pos.order);
-          const sp       = getPrice(o);
-          if (bp !== 0 || sp !== 0) {
-            const pnl = (sp - bp) * matchQty * mult;
+          const entryPx  = getPrice(pos.order);
+          const exitPx   = getPrice(o);
+          if (entryPx !== 0 || exitPx !== 0) {
+            // Long: profit when exit > entry. Short: profit when entry > exit.
+            const pnl = pos.short
+              ? (entryPx - exitPx) * matchQty * mult
+              : (exitPx  - entryPx) * matchQty * mult;
             trades.push({
               id:        `${pos.order.orderId}-${o.orderId}`,
               symbol:    sym,
-              entryTime: new Date(pos.order.enteredTime ?? Date.now()),
-              exitTime:  new Date(o.enteredTime ?? Date.now()),
+              entryTime: new Date(pos.order.closeTime ?? pos.order.enteredTime ?? Date.now()),
+              exitTime:  new Date(o.closeTime ?? o.enteredTime ?? Date.now()),
               pnl, win: pnl > 0, qty: matchQty,
             });
           }
