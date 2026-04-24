@@ -699,6 +699,85 @@ function PnlByTimeOfDay({ trades }: { trades: any[] }) {
   );
 }
 
+// ── Trade History ─────────────────────────────────────────────────────────────
+function TradeHistory({ trades }: { trades: any[] }) {
+  const [filter, setFilter] = useState<DateFilter>('Today');
+  const [customFrom, setCustomFrom] = useState('');
+  const [customTo,   setCustomTo]   = useState('');
+
+  const filtered = useMemo(() => {
+    const [from, to] = getDateRange(filter, customFrom, customTo);
+    return trades
+      .filter(t => {
+        const et = t.exitTime instanceof Date ? t.exitTime : new Date(t.exitTime);
+        return et >= from && et <= to;
+      })
+      .sort((a, b) => {
+        const at = a.exitTime instanceof Date ? a.exitTime.getTime() : new Date(a.exitTime).getTime();
+        const bt = b.exitTime instanceof Date ? b.exitTime.getTime() : new Date(b.exitTime).getTime();
+        return bt - at; // newest first
+      });
+  }, [trades, filter, customFrom, customTo]);
+
+  return (
+    <div className="card" style={{ padding: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
+        <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <BarChart2 size={14} /> TRADE HISTORY
+          <span style={{ fontWeight: 400, color: 'var(--text-muted)', marginLeft: 4 }}>({filtered.length} trades)</span>
+        </div>
+        <DateFilterBar value={filter} onChange={setFilter} customFrom={customFrom} customTo={customTo} onCustomFrom={setCustomFrom} onCustomTo={setCustomTo} />
+      </div>
+      {filtered.length === 0 ? (
+        <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: 13, padding: '20px 0' }}>No trades in selected period</div>
+      ) : (
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                {['Symbol', 'Entry Time', 'Exit Time', 'Qty', 'P&L'].map((h, i) => (
+                  <th key={h} style={{ padding: '8px 12px', textAlign: i >= 3 ? 'right' : 'left', fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((t, i) => {
+                const pos = t.pnl >= 0;
+                const entryT = t.entryTime instanceof Date ? t.entryTime : new Date(t.entryTime);
+                const exitT  = t.exitTime  instanceof Date ? t.exitTime  : new Date(t.exitTime);
+                const fmtT   = (d: Date) => d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                const fmtD   = (d: Date) => d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+                const sameDay = entryT.toDateString() === exitT.toDateString();
+                return (
+                  <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-hover)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                    <td style={{ padding: '10px 12px', fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, fontSize: 12 }}>
+                      {isOpt(t.symbol) ? formatSym(t.symbol) : t.symbol}
+                    </td>
+                    <td style={{ padding: '10px 12px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                      {!sameDay && <span style={{ marginRight: 4, color: 'var(--text-muted)' }}>{fmtD(entryT)}</span>}
+                      {fmtT(entryT)}
+                    </td>
+                    <td style={{ padding: '10px 12px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                      {!sameDay && <span style={{ marginRight: 4, color: 'var(--text-muted)' }}>{fmtD(exitT)}</span>}
+                      {fmtT(exitT)}
+                    </td>
+                    <td style={{ padding: '10px 12px', textAlign: 'right', fontFamily: 'JetBrains Mono, monospace' }}>{t.qty}</td>
+                    <td style={{ padding: '10px 12px', textAlign: 'right', fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, color: pos ? 'var(--green)' : 'var(--red)' }}>
+                      {pos ? '+' : ''}${t.pnl.toFixed(2)}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Status badge colors ───────────────────────────────────────────────────────
 const STATUS_COLORS: Record<string, string> = {
   WORKING: 'badge-blue', PENDING_ACTIVATION: 'badge-blue',
@@ -979,6 +1058,9 @@ export default function Dashboard() {
         <PnlBySymbol    trades={chartTrades} />
         <PnlBySetup     trades={chartTrades} notes={journalNotes} />
         <PnlByTimeOfDay trades={chartTrades} />
+
+        {/* ── Trade History ──────────────────────────────────────────────────── */}
+        <TradeHistory trades={allTrades} />
 
         </div>
       </div>
