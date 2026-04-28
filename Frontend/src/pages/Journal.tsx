@@ -20,13 +20,13 @@ function isOption(sym: string) { return /^[A-Z]+\s*\d{6}[CP]\d+$/.test(sym.trim(
 function formatSym(sym: string) {
   const m = sym.match(/^([A-Z]+)\s*(\d{2})(\d{2})(\d{2})([CP])(\d+)$/);
   if (!m) return sym;
-  const [, underlying, y, mo, d, , strikeStr] = m;
+  const [, underlying, y, mo, d, cp, strikeStr] = m;
   const strike = parseInt(strikeStr) / 1000;
   const yyyy   = `20${y}`;
   const expiry = new Date(Number(yyyy), parseInt(mo) - 1, parseInt(d));
   const todayMidnight = new Date(); todayMidnight.setHours(0, 0, 0, 0);
   const dte = Math.max(0, Math.round((expiry.getTime() - todayMidnight.getTime()) / 86400000));
-  return `${underlying} ${strike} Strike ${mo}/${d}/${yyyy} ${dte}DTE`;
+  return `${underlying} ${strike} ${cp === 'C' ? 'Call' : 'Put'} ${mo}/${d}/${yyyy} ${dte}DTE`;
 }
 
 function getDateRange(filter: DateFilter, customFrom: string, customTo: string): [Date, Date] {
